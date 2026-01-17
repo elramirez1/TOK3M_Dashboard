@@ -1,7 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 import sqlite3
 import pandas as pd
+from typing import List, Optional
 
 app = FastAPI()
 
@@ -15,29 +16,33 @@ app.add_middleware(
 
 DB_PATH = "/Users/danielramirezquintana/Desktop/TOK3M_1/DB/TOKEM.db"
 
-@app.get("/api/stats")
-def get_stats():
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        res = pd.read_sql("SELECT COUNT(*) as total FROM ANALISIS_TOK3M", conn)
-        total = int(res['total'].iloc[0])
-        conn.close()
-        return {"total_llamadas": total}
-    except Exception as e:
-        return {"error": str(e)}
-
 @app.get("/api/resumen/graficos")
-def get_graficos():
+def get_graficos(
+    inicio: Optional[str] = None, 
+    fin: Optional[str] = None, 
+    codigos: Optional[List[str]] = Query(None),
+    empresas: Optional[List[str]] = Query(None)
+):
     try:
         conn = sqlite3.connect(DB_PATH)
-        # 1. Casos por día (YMD)
-        df_dia = pd.read_sql("SELECT YMD as FECHA, COUNT(*) as cantidad FROM ANALISIS_TOK3M GROUP BY YMD ORDER BY YMD", conn)
+        filters = []
         
-        # 2. TODAS LAS EMPRESAS (Quitamos el LIMIT 5)
-        df_emp = pd.read_sql("SELECT EMPRESA, COUNT(*) as cantidad FROM ANALISIS_TOK3M GROUP BY EMPRESA ORDER BY cantidad DESC", conn)
+        if inicio and fin:
+            filters.append(f"YMD BETWEEN '{inicio.replace('-', '')}' AND '{fin.replace('-', '')}'")
         
-        # 3. Casos por contacto
-        df_con = pd.read_sql("SELECT CODIGO_CONTACTO, COUNT(*) as cantidad FROM ANALISIS_TOK3M GROUP BY CODIGO_CONTACTO ORDER BY cantidad DESC LIMIT 10", conn)
+        if codigos:
+            cods_str = ",".join([f"'{c}'" for c in codigos])
+            filters.append(f"CODIGO_CONTACTO IN ({cods_str})")
+
+        if empresas:
+            emps_str = ",".join([f"'{e}'" for e in empresas])
+            filters.append(f"EMPRESA IN ({emps_str})")
+        
+        where = "WHERE " + " AND ".join(filters) if filters else ""
+        
+        df_dia = pd.read_sql(f"SELECT YMD as FECHA, COUNT(*) as cantidad FROM ANALISIS_TOK3M {where} GROUP BY YMD ORDER BY YMD", conn)
+        df_emp = pd.read_sql(f"SELECT EMPRESA, COUNT(*) as cantidad FROM ANALISIS_TOK3M {where} GROUP BY EMPRESA ORDER BY cantidad DESC", conn)
+        df_con = pd.read_sql(f"SELECT CODIGO_CONTACTO, COUNT(*) as cantidad FROM ANALISIS_TOK3M {where} GROUP BY CODIGO_CONTACTO ORDER BY cantidad DESC", conn)
         
         conn.close()
         return {
@@ -47,3 +52,10 @@ def get_graficos():
         }
     except Exception as e:
         return {"error": str(e)}
+
+@app.get("/api/stats")
+def get_stats():
+    conn = sqlite3.connect(DB_PATH)
+    total = pd.read_sql("SELECT COUNT(*) as total FROM ANALISIS_TOK3M", conn).iloc[0]['total']
+    conn.close()
+    return {"total_llamadas": int(total)}
