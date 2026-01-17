@@ -49,6 +49,9 @@ function App() {
   const [empsSel, setEmpsSel] = useState([]);
   const [listas, setListas] = useState({ codigos: [], empresas: [] });
 
+  // Calcular la suma total de los datos filtrados actualmente
+  const totalFiltrado = graficos.por_dia.reduce((acc, curr) => acc + curr.cantidad, 0);
+
   const fetchData = async () => {
     try {
       const params = new URLSearchParams();
@@ -126,19 +129,26 @@ function App() {
             <button onClick={resetFilters} className="ml-auto bg-gray-800 hover:bg-red-900/30 text-gray-400 hover:text-red-500 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all border border-gray-700">↺ Reset</button>
           </div>
 
-          <div className="bg-[#111827] p-10 rounded-[2.5rem] border border-gray-800 shadow-xl">
-             <h3 className="text-2xl font-black text-blue-400 mb-8 uppercase italic tracking-tighter">Carga de Trabajo Diaria</h3>
-             <div className="h-[400px]">
-                <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={graficos.por_dia}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1F2937" vertical={false} />
-                  <XAxis dataKey="FECHA" stroke="#4B5563" fontSize={10} axisLine={false} tickLine={false} />
-                  <YAxis stroke="#4B5563" fontSize={10} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{backgroundColor: '#0B0F19', border: '1px solid #1F2937', borderRadius: '15px', color: '#fff'}} />
-                  <Area type="monotone" dataKey="cantidad" stroke="#3B82F6" strokeWidth={4} fillOpacity={0.1} fill="#3B82F6" />
-                </AreaChart>
-              </ResponsiveContainer>
-             </div>
+          <div className="bg-[#111827] p-10 rounded-[2.5rem] border border-gray-800 shadow-xl relative">
+              <div className="flex justify-between items-start mb-8">
+                <h3 className="text-2xl font-black text-blue-400 uppercase italic tracking-tighter">Carga de Trabajo Diaria</h3>
+                {/* SUMA TOTAL DINÁMICA EN EL EXTREMO DERECHO */}
+                <div className="text-right">
+                  <p className="text-gray-500 text-[9px] font-black uppercase tracking-widest">Total Selección</p>
+                  <p className="text-4xl font-mono font-black text-blue-500 tracking-tighter">{totalFiltrado.toLocaleString()}</p>
+                </div>
+              </div>
+              <div className="h-[400px]">
+                 <ResponsiveContainer width="100%" height="100%">
+                 <AreaChart data={graficos.por_dia}>
+                   <CartesianGrid strokeDasharray="3 3" stroke="#1F2937" vertical={false} />
+                   <XAxis dataKey="FECHA" stroke="#4B5563" fontSize={10} axisLine={false} tickLine={false} />
+                   <YAxis stroke="#4B5563" fontSize={10} axisLine={false} tickLine={false} />
+                   <Tooltip contentStyle={{backgroundColor: '#0B0F19', border: '1px solid #1F2937', borderRadius: '15px', color: '#fff'}} />
+                   <Area type="monotone" dataKey="cantidad" stroke="#3B82F6" strokeWidth={4} fillOpacity={0.1} fill="#3B82F6" />
+                 </AreaChart>
+               </ResponsiveContainer>
+              </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
