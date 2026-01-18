@@ -36,14 +36,20 @@ def get_graficos(
             filters.append(f"EMPRESA IN ({emps_str})")
         
         where = "WHERE " + " AND ".join(filters) if filters else ""
+        
         df_dia = pd.read_sql(f"SELECT YMD as FECHA, SUM(cantidad) as cantidad FROM ANALISIS_TOK3M {where} GROUP BY YMD ORDER BY YMD", conn)
         df_emp = pd.read_sql(f"SELECT EMPRESA, SUM(cantidad) as cantidad FROM ANALISIS_TOK3M {where} GROUP BY EMPRESA ORDER BY cantidad DESC", conn)
         df_con = pd.read_sql(f"SELECT CODIGO_CONTACTO, SUM(cantidad) as cantidad FROM ANALISIS_TOK3M {where} GROUP BY CODIGO_CONTACTO ORDER BY cantidad DESC", conn)
+        
+        # NUEVA CONSULTA: EJECUTIVOS
+        df_eje = pd.read_sql(f"SELECT NOMBRE_EJECUTIVO, SUM(cantidad) as cantidad FROM ANALISIS_TOK3M {where} GROUP BY NOMBRE_EJECUTIVO ORDER BY cantidad DESC", conn)
+        
         conn.close()
         return {
             "por_dia": df_dia.to_dict(orient='records'),
             "por_empresa": df_emp.to_dict(orient='records'),
-            "por_contacto": df_con.to_dict(orient='records')
+            "por_contacto": df_con.to_dict(orient='records'),
+            "por_ejecutivo": df_eje.to_dict(orient='records')
         }
     except Exception as e:
         return {"error": str(e)}
