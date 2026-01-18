@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import ExcelFilter from './components/ExcelFilter';
 import Resumen from './pages/Resumen';
+import logo from './assets/logo.jpg';
 
 function App() {
   const [view, setView] = useState('menu');
@@ -10,7 +11,7 @@ function App() {
     por_dia: [], 
     por_empresa: [], 
     por_contacto: [], 
-    por_ejecutivo: [] // <--- Añadido
+    por_ejecutivo: [] 
   });
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
@@ -58,13 +59,12 @@ function App() {
 
   return (
     <div className="min-h-screen bg-[#0B0F19] text-white p-8 font-sans">
-      <header className="mb-10 flex justify-between items-center border-b border-gray-800/50 pb-8">
-        <div onClick={() => setView('menu')} className="cursor-pointer group">
-          <h1 className="text-5xl font-black bg-gradient-to-r from-blue-500 to-cyan-400 bg-clip-text text-transparent italic tracking-tighter uppercase">TOK3M</h1>
-          <p className="text-gray-600 text-[9px] tracking-[0.5em] uppercase font-bold mt-1">Intelligence Systems</p>
+      <header className="mb-10 flex justify-between items-center border-b border-gray-800/50 pb-6">
+        <div onClick={() => setView('menu')} className="cursor-pointer group transition-transform hover:scale-105">
+          <img src={logo} alt="TOKEM Logo" className="h-20 w-auto rounded-xl object-contain shadow-2xl shadow-blue-500/10" />
         </div>
         {view !== 'menu' && (
-          <button onClick={() => setView('menu')} className="bg-[#111827] px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-gray-800 transition-all">← Menú</button>
+          <button onClick={() => setView('menu')} className="bg-[#111827] px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-gray-800 transition-all hover:border-blue-500 hover:text-blue-400">← Menú</button>
         )}
       </header>
 
@@ -85,8 +85,8 @@ function App() {
           <div className="flex items-center gap-6 bg-[#111827] p-5 rounded-[2rem] border border-gray-800 shadow-2xl relative z-[50]">
             <div className="flex items-center gap-3">
               <span className="text-[9px] font-black text-gray-500 uppercase">Fecha</span>
-              <input type="date" value={fechaInicio} onChange={e => setFechaInicio(e.target.value)} className="bg-black border border-gray-800 p-2 rounded-xl text-[10px] w-36 text-white" />
-              <input type="date" value={fechaFin} onChange={e => setFechaFin(e.target.value)} className="bg-black border border-gray-800 p-2 rounded-xl text-[10px] w-36 text-white" />
+              <input type="date" value={fechaInicio} onChange={e => setFechaInicio(e.target.value)} className="bg-black border border-gray-800 p-2 rounded-xl text-[10px] w-36 text-white focus:border-blue-500 outline-none" />
+              <input type="date" value={fechaFin} onChange={e => setFechaFin(e.target.value)} className="bg-black border border-gray-800 p-2 rounded-xl text-[10px] w-36 text-white focus:border-blue-500 outline-none" />
             </div>
             <div className="flex items-center gap-4">
               <ExcelFilter label="Empresa" options={listas.empresas} selected={empsSel} onToggle={v => toggleFilter(v, 'emp')} onClear={() => setEmpsSel([])} />
