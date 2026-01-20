@@ -25,14 +25,18 @@ def get_cumplimiento(inicio: Optional[str]=None, fin: Optional[str]=None, codigo
     where = "WHERE " + " AND ".join(f) if f else ""
     
     cols = {
-        "Saludo":"EvCal_Saludo", "Titular":"EvCal_Titular", "Familiar":"EvCal_Familiar",
-        "Presentación":"EvCal_Presentacion", "Cordialidad":"EvCal_Cordialidad",
-        "Recado":"EvCal_Recado", "Empatía":"EvCal_Empex", "Encargo":"EvCal_Encargo",
-        "Cierre":"EvCal_Cierre"
+        "SALUDO": "EvCal_Saludo", "TITULAR": "EvCal_Titular", "FAMILIAR": "EvCal_Familiar",
+        "PRESENTACION": "EvCal_Presentacion", "CORDIALIDAD": "EvCal_Cordialidad",
+        "RECADO": "EvCal_Recado", "EMPEX": "EvCal_Empex", "ENCARGO": "EvCal_Encargo",
+        "GRABADO": "EvCal_Grabado", "INFORMACION": "EvCal_Informacion",
+        "MOTIVO": "EvCal_Motivo", "OFERTA": "EvCal_Oferta", "CANALES": "EvCal_Canales",
+        "COPA": "EvCal_Copa", "DUDAS": "EvCal_Dudas", "CIERRE": "EvCal_Cierre"
     }
     
     sel = ", ".join([f"AVG({v}) as {k}" for k, v in cols.items()])
     df = pd.read_sql(f"SELECT {sel} FROM ANALISIS_TOK3M {where}", conn)
     conn.close()
     
-    return [{"item": k, "promedio": round(float(df.iloc[0][k] or 0), 1)} for k in cols.keys()]
+    orden = ["SALUDO", "TITULAR", "FAMILIAR", "PRESENTACION", "CORDIALIDAD", "RECADO", "EMPEX", "ENCARGO", "GRABADO", "INFORMACION", "MOTIVO", "OFERTA", "CANALES", "COPA", "DUDAS", "CIERRE"]
+    
+    return [{"item": k, "promedio": round(float(df.iloc[0][k] or 0), 1)} for k in orden]
