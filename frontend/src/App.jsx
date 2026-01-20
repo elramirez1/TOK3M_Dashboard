@@ -10,8 +10,8 @@ function App() {
   const [stats, setStats] = useState({ total_llamadas: 0, promedio_calidad: '0.0%' });
   const [graficos, setGraficos] = useState({ por_dia: [], por_empresa: [], por_contacto: [], por_ejecutivo: [] });
   const [datosCalidad, setDatosCalidad] = useState([]);
+  const [evolucionCalidad, setEvolucionCalidad] = useState([]);
   const [listas, setListas] = useState({ codigos: [], empresas: [], ejecutivos: [] });
-  
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
   const [codsSel, setCodsSel] = useState([]);
@@ -20,23 +20,16 @@ function App() {
 
   const fetchData = async () => {
     try {
-      // 1. Cargar contadores del menú
       const resS = await axios.get('http://127.0.0.1:8000/api/stats');
       setStats(resS.data);
-
-      // 2. Parámetros para módulos
       const p = new URLSearchParams();
       if (fechaInicio) p.append('inicio', fechaInicio);
       if (fechaFin) p.append('fin', fechaFin);
       codsSel.forEach(v => p.append('codigos', v));
       empsSel.forEach(v => p.append('empresas', v));
       ejesSel.forEach(v => p.append('ejecutivos', v));
-
-      // 3. Cargar Resumen
       const resR = await axios.get(`http://127.0.0.1:8000/api/resumen/graficos?${p.toString()}`);
       setGraficos(resR.data);
-      
-      // Inicializar listas de filtros una sola vez
       if (listas.codigos.length === 0) {
         setListas({
           codigos: [...new Set(resR.data.por_contacto.map(x => x.CODIGO_CONTACTO))],
@@ -44,13 +37,13 @@ function App() {
           ejecutivos: [...new Set(resR.data.por_ejecutivo.map(x => x.NOMBRE_EJECUTIVO))].sort()
         });
       }
-
-      // 4. Cargar Calidad si la vista está activa
       if (view === 'calidad') {
         const resC = await axios.get(`http://127.0.0.1:8000/api/calidad/cumplimiento?${p.toString()}`);
         setDatosCalidad(resC.data);
+        const resE = await axios.get(`http://127.0.0.1:8000/api/calidad/evolucion?${p.toString()}`);
+        setEvolucionCalidad(resE.data);
       }
-    } catch (err) { console.error("Error cargando datos:", err); }
+    } catch (err) { console.error(err); }
   };
 
   useEffect(() => { fetchData(); }, [view, fechaInicio, fechaFin, codsSel, empsSel, ejesSel]);
@@ -74,22 +67,18 @@ function App() {
     <div className="min-h-screen bg-[#0B0F19] text-white p-8 font-sans">
       <header className="mb-10 flex justify-between items-center border-b border-gray-800/50 pb-6">
         <img src={logo} onClick={() => setView('menu')} alt="Logo" className="h-20 cursor-pointer rounded-xl" />
-        {view !== 'menu' && (
-          <button onClick={() => setView('menu')} className="bg-[#111827] px-8 py-4 rounded-2xl text-[12px] font-black border-2 border-gray-700 hover:border-blue-500">
-            ← Menú Principal
-          </button>
-        )}
+        {view !== 'menu' && <button onClick={() => setView('menu')} className="bg-[#111827] px-8 py-4 rounded-2xl border-2 border-gray-700">← Menú</button>}
       </header>
 
       {view === 'menu' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {modules.map(mod => (
-            <div key={mod.id} onClick={() => (mod.id === 'resumen' || mod.id === 'calidad') && setView(mod.id)} className="p-10 bg-[#111827] border border-gray-800 rounded-[2.5rem] hover:border-blue-500/50 transition-all cursor-pointer group">
+            <div key={mod.id} onClick={() => (mod.id === 'resumen' || mod.id === 'calidad') && setView(mod.id)} className="p-10 bg-[#111827] border border-gray-800 rounded-[2.5rem] hover:border-blue-500/50 cursor-pointer group shadow-lg">
               <div className="flex justify-between items-start mb-8">
-                <div className="text-6xl grayscale group-hover:grayscale-0 transition-all">{mod.icon}</div>
-                <div className="text-4xl font-mono font-black text-blue-500 tracking-tighter">{mod.value}</div>
+                <div className="text-6xl grayscale group-hover:grayscale-0">{mod.icon}</div>
+                <div className="text-4xl font-mono font-black text-blue-500">{mod.value}</div>
               </div>
-              <h2 className="text-2xl font-black uppercase tracking-tight text-gray-400 group-hover:text-white">{mod.name}</h2>
+              <h2 className="text-2xl font-black uppercase text-gray-400 group-hover:text-white">{mod.name}</h2>
             </div>
           ))}
         </div>
@@ -104,7 +93,7 @@ function App() {
             <button onClick={() => {setFechaInicio(''); setFechaFin(''); setCodsSel([]); setEmpsSel([]); setEjesSel([]);}} className="ml-auto bg-gray-800 px-10 py-4 rounded-2xl text-[12px] font-black border-2 border-gray-700">RESET</button>
           </div>
           {view === 'resumen' && <Resumen graficos={graficos} />}
-          {view === 'calidad' && <Calidad data={datosCalidad} />}
+          {view === 'calidad' && <Calidad data={datosCalidad} evolucion={evolucionCalidad} />}
         </div>
       )}
     </div>
