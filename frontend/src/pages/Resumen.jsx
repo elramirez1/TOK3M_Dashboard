@@ -3,6 +3,21 @@ import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 
 const COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#EC4899'];
 
+// TOOLTIP PERSONALIZADO (Integrado en tu diseño original)
+const CustomTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-[#1F2937] border border-gray-700 p-4 rounded-xl shadow-2xl">
+        <p className="text-gray-400 text-[10px] font-black uppercase mb-1">{label || payload[0].name}</p>
+        <p className="text-white text-2xl font-black">
+          {Number(payload[0].value).toLocaleString()}
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
+
 const CustomYAxisTick = (props) => {
   const { x, y, payload } = props;
   const name = payload.value || "";
@@ -35,6 +50,7 @@ const Resumen = ({ graficos }) => {
 
   return (
     <div className="space-y-8">
+      {/* TRABAJO DIARIO */}
       <div className="bg-[#111827] p-10 rounded-[2.5rem] border border-gray-800 shadow-xl relative">
         <div className="flex justify-between items-start mb-8">
           <h3 className="text-2xl font-black text-blue-400 uppercase italic tracking-tighter">Carga de Trabajo Diaria</h3>
@@ -49,7 +65,7 @@ const Resumen = ({ graficos }) => {
               <CartesianGrid strokeDasharray="3 3" stroke="#1F2937" vertical={false} />
               <XAxis dataKey="FECHA" stroke="#4B5563" fontSize={10} axisLine={false} tickLine={false} />
               <YAxis stroke="#4B5563" fontSize={10} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{backgroundColor: '#0B0F19', border: '1px solid #1F2937', borderRadius: '15px', color: '#fff'}} />
+              <Tooltip content={<CustomTooltip />} />
               <Area type="monotone" dataKey="cantidad" stroke="#3B82F6" strokeWidth={4} fillOpacity={0.1} fill="#3B82F6" />
             </AreaChart>
           </ResponsiveContainer>
@@ -57,6 +73,7 @@ const Resumen = ({ graficos }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[900px]">
+        {/* RANKING EJECUTIVOS (Scrollable) */}
         <div className="bg-[#111827] p-10 rounded-[2.5rem] border border-gray-800 flex flex-col shadow-xl overflow-hidden">
           <h3 className="text-2xl font-black text-emerald-400 mb-8 uppercase italic tracking-tighter">Ranking Ejecutivos</h3>
           <div className="flex-1 overflow-y-auto pr-4 custom-scrollbar">
@@ -64,7 +81,7 @@ const Resumen = ({ graficos }) => {
               <BarChart data={por_ejecutivo} layout="vertical" margin={{ left: 60, right: 20 }}>
                 <YAxis dataKey="NOMBRE_EJECUTIVO" type="category" width={140} axisLine={false} tickLine={false} tick={<CustomYAxisTick />} />
                 <XAxis type="number" hide />
-                <Tooltip cursor={{fill: '#1F2937'}} contentStyle={{backgroundColor: '#0B0F19', border: 'none', color: '#fff'}} />
+                <Tooltip cursor={{fill: '#1F2937'}} content={<CustomTooltip />} />
                 <Bar dataKey="cantidad" fill="#10B981" radius={[0, 10, 10, 0]} barSize={25} />
               </BarChart>
             </ResponsiveContainer>
@@ -72,6 +89,7 @@ const Resumen = ({ graficos }) => {
         </div>
 
         <div className="flex flex-col gap-8 h-full">
+          {/* DISTRIBUCION CONTACTO (PieChart) */}
           <div className="bg-[#111827] p-10 rounded-[2.5rem] border border-gray-800 flex-1 shadow-xl flex flex-col relative">
             <h3 className="text-xl font-black text-blue-400 mb-2 uppercase italic tracking-tighter">Distribución Contacto</h3>
             <div className="flex-1">
@@ -80,13 +98,14 @@ const Resumen = ({ graficos }) => {
                   <Pie data={por_contacto} dataKey="cantidad" nameKey="CODIGO_CONTACTO" cx="50%" cy="45%" innerRadius="55%" outerRadius="95%" paddingAngle={4}>
                     {por_contacto.map((e, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="none" />)}
                   </Pie>
-                  <Tooltip contentStyle={{borderRadius: '15px'}} />
+                  <Tooltip content={<CustomTooltip />} />
                   <Legend verticalAlign="bottom" height={36} wrapperStyle={{fontSize: '9px', fontWeight: '900', paddingTop: '10px'}} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
           </div>
 
+          {/* GESTIONES POR EMPRESA (Scrollable) */}
           <div className="bg-[#111827] p-8 rounded-[2.5rem] border border-gray-800 flex-1 shadow-xl flex flex-col overflow-hidden">
             <h3 className="text-xl font-black text-purple-400 mb-4 uppercase italic tracking-tighter">Gestiones por Empresa</h3>
             <div className="flex-1 overflow-y-auto pr-4 custom-scrollbar">
@@ -94,7 +113,7 @@ const Resumen = ({ graficos }) => {
                 <BarChart data={por_empresa} layout="vertical">
                   <YAxis dataKey="EMPRESA" type="category" stroke="#9CA3AF" fontSize={9} width={100} axisLine={false} tickLine={false} />
                   <XAxis type="number" hide />
-                  <Tooltip cursor={{fill: '#1F2937'}} contentStyle={{backgroundColor: '#0B0F19', border: 'none', color: '#fff'}} />
+                  <Tooltip cursor={{fill: '#1F2937'}} content={<CustomTooltip />} />
                   <Bar dataKey="cantidad" fill="#8B5CF6" radius={[0, 10, 10, 0]} barSize={12} />
                 </BarChart>
               </ResponsiveContainer>

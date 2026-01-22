@@ -8,6 +8,19 @@ const pool = new Pool({ user: 'danielramirezquintana', host: 'localhost', databa
 app.use(cors());
 app.use(express.json());
 
+// --- CORRECCIÓN DE RUTA DE LOGIN ---
+// Cambiamos /api/login por /api/auth/login para que coincida con tu Frontend
+app.post('/api/auth/login', (req, res) => {
+    const { username, password } = req.body;
+    console.log('Login solicitado en /api/auth/login para:', username);
+    
+    if (username === 'admin' && password === 'admin123') {
+        return res.json({ token: 'fake-jwt-token', user: 'admin' });
+    }
+    return res.status(401).json({ message: 'Credenciales inválidas' });
+});
+
+// --- EL RESTO DE TUS ENDPOINTS ---
 const RISK_COLS = ["INSULTO", "RECLAMO", "INCUMPLIMIENTO", "EQUIVOCADO", "YA PAGO"];
 const CAL_COLS = ["SALUDO", "TITULAR", "FAMILIAR", "PRESENTACION", "CORDIALIDAD", "RECADO", "EMPEX", "ENCARGO", "GRABADO", "INFORMACION", "MOTIVO", "OFERTA", "CANALES", "COPA", "DUDAS", "CIERRE"];
 
@@ -29,17 +42,9 @@ const getFilters = (req) => {
 app.get('/api/stats', async (req, res) => {
     try {
         const w = getFilters(req);
-        const q = `SELECT 
-            SUM(total_gestiones)::bigint as t, 
-            AVG("FINAL") as c, 
-            (SUM(tiene_riesgo)::float / NULLIF(SUM(total_gestiones), 0)) * 100 as r 
-            FROM resumen_calidad_diario ${w}`;
+        const q = `SELECT SUM(total_gestiones)::bigint as t, AVG("FINAL") as c, (SUM(tiene_riesgo)::float / NULLIF(SUM(total_gestiones), 0)) * 100 as r FROM resumen_calidad_diario ${w}`;
         const r = await pool.query(q);
-        res.json({ 
-            total_llamadas: Number(r.rows[0].t || 0), 
-            promedio_calidad: `${Number(r.rows[0].c || 0).toFixed(1)}%`, 
-            porcentaje_riesgo: `${Number(r.rows[0].r || 0).toFixed(2)}%` 
-        });
+        res.json({ total_llamadas: Number(r.rows[0].t || 0), promedio_calidad: `${Number(r.rows[0].c || 0).toFixed(1)}%`, porcentaje_riesgo: `${Number(r.rows[0].r || 0).toFixed(2)}%` });
     } catch (e) { res.status(500).send(e.message); }
 });
 
@@ -55,40 +60,24 @@ app.get('/api/resumen/graficos', async (req, res) => {
 });
 
 app.get('/api/riesgo/cumplimiento', async (req, res) => {
-    try {
-        const w = getFilters(req);
-        // Lógica Python: SUM(variable) / SUM(Q) * 100
-        const sel = RISK_COLS.map(c => `(SUM("${c}")::float / NULLIF(SUM(total_gestiones), 0)) * 100 as "${c}"`).join(',');
-        const q = `SELECT ${sel}, (SUM(tiene_riesgo)::float / NULLIF(SUM(total_gestiones), 0)) * 100 as "FINAL" FROM resumen_calidad_diario ${w}`;
-        const r = await pool.query(q);
-        
-        // Formateamos para que el frontend reciba números limpios
-        const resu = RISK_COLS.map(k => ({ 
-            item: k, 
-            promedio: Number(parseFloat(r.rows[0][k] || 0).toFixed(2))
-        }));
-        resu.push({ item: "FINAL", promedio: Number(parseFloat(r.rows[0].FINAL || 0).toFixed(2)) });
-        res.json(resu);
-    } catch (e) { res.status(500).send(e.message); }
+    const w = getFilters(req);
+    const sel = RISK_COLS.map(c => `(SUM("${c}")::float / NULLIF(SUM(total_gestiones), 0)) * 100 as "${c}"`).join(',');
+    const r = await pool.query(`SELECT ${sel}, (SUM(tiene_riesgo)::float / NULLIF(SUM(total_gestiones), 0)) * 100 as "FINAL" FROM resumen_calidad_diario ${w}`);
+    const resu = RISK_COLS.map(k => ({ item: k, promedio: Number(parseFloat(r.rows[0][k] || 0).toFixed(2)) }));
+    resu.push({ item: "FINAL", promedio: Number(parseFloat(r.rows[0].FINAL || 0).toFixed(2)) });
+    res.json(resu);
 });
 
 app.get('/api/riesgo/evolucion', async (req, res) => {
-    try {
-        const w = getFilters(req);
-        const sel = RISK_COLS.map(c => `(SUM("${c}")::float / NULLIF(SUM(total_gestiones), 0)) * 100 as "${c}"`).join(',');
-        const q = `SELECT ymd as fecha, ${sel}, (SUM(tiene_riesgo)::float / NULLIF(SUM(total_gestiones), 0)) * 100 as "FINAL" FROM resumen_calidad_diario ${w} GROUP BY ymd ORDER BY ymd`;
-        const r = await pool.query(q);
-        
-        // Convertir strings de Postgres a números para Recharts
-        const formatted = r.rows.map(row => {
-            const newRow = { fecha: row.fecha };
-            Object.keys(row).forEach(key => {
-                if(key !== 'fecha') newRow[key] = Number(parseFloat(row[key] || 0).toFixed(2));
-            });
-            return newRow;
-        });
-        res.json(formatted);
-    } catch (e) { res.status(500).send(e.message); }
+    const w = getFilters(req);
+    const sel = RISK_COLS.map(c => `(SUM("${c}")::float / NULLIF(SUM(total_gestiones), 0)) * 100 as "${c}"`).join(',');
+    const r = await pool.query(`SELECT ymd as fecha, ${sel}, (SUM(tiene_riesgo)::float / NULLIF(SUM(total_gestiones), 0)) * 100 as "FINAL" FROM resumen_calidad_diario ${w} GROUP BY ymd ORDER BY ymd`);
+    const formatted = r.rows.map(row => {
+        const newRow = { fecha: row.fecha };
+        Object.keys(row).forEach(key => { if(key !== 'fecha') newRow[key] = Number(parseFloat(row[key] || 0).toFixed(2)); });
+        return newRow;
+    });
+    res.json(formatted);
 });
 
 app.get('/api/calidad/cumplimiento', async (req, res) => {
@@ -107,4 +96,4 @@ app.get('/api/calidad/evolucion', async (req, res) => {
     res.json(r.rows);
 });
 
-app.listen(8000, () => console.log('🚀 Servidor con Lógica de Sumas OK'));
+app.listen(8000, () => console.log('🚀 SERVIDOR CORREGIDO EN PUERTO 8000'));
