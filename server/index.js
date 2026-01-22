@@ -1,98 +1,74 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
+const { Pool } = require('pg');
 const cors = require('cors');
-const helmet = require('helmet');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
 const app = express();
-const PORT = 8000;
-const SECRET = 'TOKEM_SECRET_2024_KEY_99';
+const pool = new Pool({ user: 'danielramirezquintana', host: 'localhost', database: 'tokem_db', port: 5432 });
 
-app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
-const db = new (require("sqlite3").verbose()).Database('/Users/danielramirezquintana/Desktop/TOK3M_1/DB/TOKEM.db');
-const dbUsers = new (require("sqlite3").verbose()).Database('./users.db');
+const SECRET = 'TOKEM_SECRET_2024_KEY_99';
+const CAL_COLS = ["SALUDO", "TITULAR", "FAMILIAR", "PRESENTACION", "CORDIALIDAD", "RECADO", "EMPEX", "ENCARGO", "GRABADO", "INFORMACION", "MOTIVO", "OFERTA", "CANALES", "COPA", "DUDAS", "CIERRE"];
 
-// Función helper para convertir db.all en Promesa (Velocidad)
-const query = (sql, params = []) => new Promise((res, rej) => {
-    db.all(sql, params, (err, rows) => err ? rej(err) : res(rows));
-});
-
-const authenticateToken = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    if (!token) return res.status(401).json({ error: "No token" });
-    jwt.verify(token, SECRET, (err, user) => {
-        if (err) return res.status(403).json({ error: "Token inválido" });
-        req.user = user;
-        next();
-    });
-};
-
-const buildWhere = (q) => {
+const getFilters = (req) => {
+    const { inicio, fin, codigos, empresas, ejecutivos } = req.query;
     let f = [];
-    if (q.inicio && q.fin) f.push(`YMD BETWEEN '${q.inicio.replace(/-/g, '')}' AND '${q.fin.replace(/-/g, '')}'`);
-    const addFilter = (param, col) => {
-        if (q[param]) {
-            const vals = Array.isArray(q[param]) ? q[param] : [q[param]];
-            if (vals.length > 0) f.push(`${col} IN (${vals.map(v => `'${v}'`).join(',')})`);
-        }
+    if (inicio && fin) f.push(`ymd BETWEEN '${inicio.replace(/-/g, '')}' AND '${fin.replace(/-/g, '')}'`);
+    const proc = (col, val) => {
+        if (!val) return;
+        const a = Array.isArray(val) ? val : val.split(',');
+        if (a.length > 0) f.push(`${col} IN (${a.map(v => "'"+v.trim()+"'").join(',')})`);
     };
-    addFilter('empresas', 'EMPRESA');
-    addFilter('codigos', 'CODIGO_CONTACTO');
-    addFilter('ejecutivos', 'NOMBRE_EJECUTIVO');
-    return f.length > 0 ? "WHERE " + f.join(" AND ") : "";
+    proc('codigo_contacto', codigos);
+    proc('empresa', empresas);
+    proc('nombre_ejecutivo', ejecutivos);
+    return f.length > 0 ? ' WHERE ' + f.join(' AND ') : '';
 };
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body;
-    dbUsers.get("SELECT * FROM usuarios WHERE username = ?", [username], (err, user) => {
-        if (user && bcrypt.compareSync(password, user.password)) {
-            const token = jwt.sign({ id: user.id, username: user.username }, SECRET, { expiresIn: '8h' });
-            res.json({ token, username: user.username });
-        } else { res.status(401).json({ error: "Credenciales" }); }
-    });
+    const r = await pool.query("SELECT * FROM usuarios WHERE username = $1", [username]);
+    if (r.rows[0] && bcrypt.compareSync(password, r.rows[0].password)) {
+        const token = jwt.sign({ id: r.rows[0].id, username: r.rows[0].username }, SECRET, { expiresIn: '8h' });
+        res.json({ token, username: r.rows[0].username });
+    } else { res.status(401).json({ error: "Inválido" }); }
 });
 
-app.get('/api/stats', authenticateToken, async (req, res) => {
-    const row = await query("SELECT SUM(cantidad) as total, AVG(EvCal_Final) as promedio FROM ANALISIS_TOK3M");
-    res.json({ total_llamadas: row[0].total || 0, promedio_calidad: `${(row[0].promedio || 0).toFixed(1)}%` });
+app.get('/api/stats', async (req, res) => {
+    const w = getFilters(req);
+    const r = await pool.query(`SELECT SUM(total_gestiones)::bigint as total, AVG("FINAL") as promedio FROM resumen_calidad_diario ${w}`);
+    res.json({ total_llamadas: Number(r.rows[0].total || 0), promedio_calidad: `${Number(r.rows[0].promedio || 0).toFixed(1)}%` });
 });
 
-app.get('/api/resumen/graficos', authenticateToken, async (req, res) => {
-    const where = buildWhere(req.query);
-    try {
-        // Ejecución en PARALELO
-        const [dia, emp, con, eje] = await Promise.all([
-            query(`SELECT YMD as FECHA, SUM(cantidad) as cantidad FROM ANALISIS_TOK3M ${where} GROUP BY YMD ORDER BY YMD`),
-            query(`SELECT EMPRESA, SUM(cantidad) as cantidad FROM ANALISIS_TOK3M ${where} GROUP BY EMPRESA ORDER BY cantidad DESC LIMIT 15`),
-            query(`SELECT CODIGO_CONTACTO, SUM(cantidad) as cantidad FROM ANALISIS_TOK3M ${where} GROUP BY CODIGO_CONTACTO ORDER BY cantidad DESC`),
-            query(`SELECT NOMBRE_EJECUTIVO, SUM(cantidad) as cantidad FROM ANALISIS_TOK3M ${where} GROUP BY NOMBRE_EJECUTIVO ORDER BY cantidad DESC LIMIT 20`)
-        ]);
-        res.json({ por_dia: dia, por_empresa: emp, por_contacto: con, por_ejecutivo: eje });
-    } catch (e) { res.status(500).send(e.message); }
+app.get('/api/resumen/graficos', async (req, res) => {
+    const w = getFilters(req);
+    const [d, e, c, j] = await Promise.all([
+        pool.query(`SELECT ymd as "FECHA", SUM(total_gestiones)::int as cantidad FROM resumen_calidad_diario ${w} GROUP BY ymd ORDER BY ymd`),
+        pool.query(`SELECT empresa as "EMPRESA", SUM(total_gestiones)::int as cantidad FROM resumen_calidad_diario ${w} GROUP BY empresa ORDER BY cantidad DESC LIMIT 15`),
+        pool.query(`SELECT codigo_contacto as "CODIGO_CONTACTO", SUM(total_gestiones)::int as cantidad FROM resumen_calidad_diario ${w} GROUP BY codigo_contacto ORDER BY cantidad DESC LIMIT 10`),
+        pool.query(`SELECT nombre_ejecutivo as "NOMBRE_EJECUTIVO", SUM(total_gestiones)::int as cantidad FROM resumen_calidad_diario ${w} GROUP BY nombre_ejecutivo ORDER BY cantidad DESC LIMIT 25`)
+    ]);
+    res.json({ por_dia: d.rows, por_empresa: e.rows, por_contacto: c.rows, por_ejecutivo: j.rows });
 });
 
-const COLS_CAL = ["Saludo", "Titular", "Familiar", "Presentacion", "Cordialidad", "Recado", "Empex", "Encargo", "Grabado", "Informacion", "Motivo", "Oferta", "Canales", "Copa", "Dudas", "Cierre"];
-
-app.get('/api/calidad/cumplimiento', authenticateToken, async (req, res) => {
-    const where = buildWhere(req.query);
-    const sel = COLS_CAL.map(c => `AVG(EvCal_${c}) as ${c.toUpperCase()}`).join(', ');
-    const row = await query(`SELECT ${sel}, AVG(EvCal_Final) as FINAL FROM ANALISIS_TOK3M INDEXED BY idx_ymd ${where}`);
-    const barras = COLS_CAL.map(c => ({ item: c.toUpperCase(), promedio: Math.round(row[0][c.toUpperCase()] || 0) }));
-    barras.push({ item: 'FINAL', promedio: Math.round(row[0].FINAL || 0) });
-    res.json(barras);
+app.get('/api/calidad/cumplimiento', async (req, res) => {
+    const w = getFilters(req);
+    const sel = CAL_COLS.map(c => `AVG("${c}") as "${c}"`).join(',');
+    const r = await pool.query(`SELECT ${sel}, AVG("FINAL") as "FINAL" FROM resumen_calidad_diario ${w}`);
+    const resu = CAL_COLS.map(k => ({ item: k, promedio: Math.round(parseFloat(r.rows[0][k] || 0) * 10) / 10 }));
+    resu.push({ item: "FINAL", promedio: Math.round(parseFloat(r.rows[0].FINAL || 0) * 10) / 10 });
+    res.json(resu);
 });
 
-app.get('/api/calidad/evolucion', authenticateToken, (req, res) => {
-    const where = buildWhere(req.query);
-    const sel = COLS_CAL.map(c => `AVG(EvCal_${c}) as ${c.toUpperCase()}`).join(', ');
-    db.all(`SELECT YMD as fecha, ${sel}, AVG(EvCal_Final) as FINAL FROM ANALISIS_TOK3M INDEXED BY idx_ymd ${where} GROUP BY YMD ORDER BY YMD`, (err, rows) => {
-        res.json(rows || []);
-    });
+app.get('/api/calidad/evolucion', async (req, res) => {
+    const w = getFilters(req);
+    // VOLVEMOS A YMD para que el gráfico tenga puntos, pero con la velocidad de la vista materializada
+    const sel = CAL_COLS.map(c => `AVG("${c}") as "${c}"`).join(',');
+    const r = await pool.query(`SELECT ymd as fecha, ${sel}, AVG("FINAL") as "FINAL" FROM resumen_calidad_diario ${w} GROUP BY ymd ORDER BY ymd`);
+    res.json(r.rows);
 });
 
-app.listen(PORT, () => console.log(`Servidor Optimizado en puerto ${PORT}`));
+app.listen(8000, () => console.log('🚀 CALIDAD RESTAURADA CON GRÁFICOS'));

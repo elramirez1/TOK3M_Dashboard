@@ -13,7 +13,6 @@ const Calidad = ({ data, evolucion }) => {
   return (
     <div className="space-y-10 pb-20">
       <div className="bg-[#111827] p-10 rounded-[2.5rem] border-2 border-gray-800 shadow-2xl relative">
-        {/* KPI Superior Derecho (Ajustado hacia arriba y sin fondo pesado) */}
         <div className="absolute top-6 right-10 text-right">
           <div className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] mb-1">Resultado Final Global</div>
           <div className="text-6xl font-black text-white drop-shadow-lg">{totalFinal}%</div>
@@ -29,7 +28,6 @@ const Calidad = ({ data, evolucion }) => {
               <YAxis stroke="#4B5563" domain={[0, 100]} />
               <Tooltip contentStyle={{backgroundColor: '#0B0F19', border: '1px solid #333', borderRadius: '12px'}} />
               
-              {/* Líneas de Referencia Restauradas */}
               <ReferenceLine y={90} stroke="#10B981" strokeDasharray="3 3" label={{ position: 'left', value: '90%', fill: '#10B981', fontSize: 11, fontWeight: 'bold' }} />
               <ReferenceLine y={75} stroke="#F59E0B" strokeDasharray="5 5" label={{ position: 'left', value: '75%', fill: '#F59E0B', fontSize: 11, fontWeight: 'bold' }} />
               <ReferenceLine y={50} stroke="#EF4444" strokeDasharray="3 3" label={{ position: 'left', value: '50%', fill: '#EF4444', fontSize: 11, fontWeight: 'bold' }} />
@@ -44,7 +42,7 @@ const Calidad = ({ data, evolucion }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {variablesProtocolo.map((variable, index) => (
-          <div key={variable.item} className="bg-[#111827] p-6 rounded-[2rem] border border-gray-800 shadow-xl">
+          <div key={variable.item} className="bg-[#111827] p-6 rounded-[2.5rem] border border-gray-800 shadow-xl">
             <div className="flex justify-between items-center mb-4">
               <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">{variable.item}</span>
               <span className="text-xl font-black" style={{ color: COLORS[index % COLORS.length] }}>{variable.promedio}%</span>
@@ -65,7 +63,6 @@ const Calidad = ({ data, evolucion }) => {
           </div>
         ))}
         
-        {/* Evolución Final (2 cuadrículas) */}
         <div className="md:col-span-2 bg-[#111827] p-8 rounded-[2.5rem] border-2 border-emerald-500/30 shadow-2xl">
           <div className="flex justify-between items-center mb-6">
             <div>

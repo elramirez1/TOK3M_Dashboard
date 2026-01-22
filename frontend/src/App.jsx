@@ -46,7 +46,7 @@ function App() {
       ]);
       
       setStats(resS.data);
-      setGraficos(resR.data);
+      const worker = new Worker(new URL("./workers/dataWorker.js", import.meta.url)); worker.postMessage({ type: "PROCESS_CHARTS", data: resR.data.por_empresa }); worker.onmessage = (e) => setGraficos({...resR.data, por_empresa: e.data.payload});
 
       if (listas.codigos.length === 0) {
         setListas({
@@ -77,7 +77,7 @@ function App() {
   if (!token) return <Login onLogin={() => setToken(localStorage.getItem('token'))} />;
 
   const modules = [
-    { id: 'resumen', name: 'Resumen General', icon: '🌐', value: stats.total_llamadas.toLocaleString() },
+    { id: 'resumen', name: 'Resumen General', icon: '🌐', value: Number(stats.total_llamadas || 0).toLocaleString() },
     { id: 'calidad', name: 'Protocolo de Calidad', icon: '📊', value: stats.promedio_calidad },
     { id: 'riesgo', name: 'Monitor de Riesgo', icon: '⚠️', value: '---' },
     { id: 'emocional', name: 'Análisis Emocional', icon: '🧠', value: '---' },
