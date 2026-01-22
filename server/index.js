@@ -1,8 +1,6 @@
 const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
 
 const app = express();
 const pool = new Pool({ user: 'danielramirezquintana', host: 'localhost', database: 'tokem_db', port: 5432 });
@@ -10,11 +8,11 @@ const pool = new Pool({ user: 'danielramirezquintana', host: 'localhost', databa
 app.use(cors());
 app.use(express.json());
 
-const SECRET = 'TOKEM_SECRET_2024_KEY_99';
+const RISK_COLS = ["INSULTO", "RECLAMO", "INCUMPLIMIENTO", "EQUIVOCADO", "YA PAGO"];
 const CAL_COLS = ["SALUDO", "TITULAR", "FAMILIAR", "PRESENTACION", "CORDIALIDAD", "RECADO", "EMPEX", "ENCARGO", "GRABADO", "INFORMACION", "MOTIVO", "OFERTA", "CANALES", "COPA", "DUDAS", "CIERRE"];
 
 const getFilters = (req) => {
-    const { inicio, fin, codigos, empresas, ejecutivos } = req.query;
+    const { inicio, fin, empresas, codigos, ejecutivos } = req.query;
     let f = [];
     if (inicio && fin) f.push(`ymd BETWEEN '${inicio.replace(/-/g, '')}' AND '${fin.replace(/-/g, '')}'`);
     const proc = (col, val) => {
@@ -22,25 +20,27 @@ const getFilters = (req) => {
         const a = Array.isArray(val) ? val : val.split(',');
         if (a.length > 0) f.push(`${col} IN (${a.map(v => "'"+v.trim()+"'").join(',')})`);
     };
-    proc('codigo_contacto', codigos);
     proc('empresa', empresas);
+    proc('codigo_contacto', codigos);
     proc('nombre_ejecutivo', ejecutivos);
     return f.length > 0 ? ' WHERE ' + f.join(' AND ') : '';
 };
 
-app.post('/api/auth/login', async (req, res) => {
-    const { username, password } = req.body;
-    const r = await pool.query("SELECT * FROM usuarios WHERE username = $1", [username]);
-    if (r.rows[0] && bcrypt.compareSync(password, r.rows[0].password)) {
-        const token = jwt.sign({ id: r.rows[0].id, username: r.rows[0].username }, SECRET, { expiresIn: '8h' });
-        res.json({ token, username: r.rows[0].username });
-    } else { res.status(401).json({ error: "Inválido" }); }
-});
-
 app.get('/api/stats', async (req, res) => {
-    const w = getFilters(req);
-    const r = await pool.query(`SELECT SUM(total_gestiones)::bigint as total, AVG("FINAL") as promedio FROM resumen_calidad_diario ${w}`);
-    res.json({ total_llamadas: Number(r.rows[0].total || 0), promedio_calidad: `${Number(r.rows[0].promedio || 0).toFixed(1)}%` });
+    try {
+        const w = getFilters(req);
+        const q = `SELECT 
+            SUM(total_gestiones)::bigint as t, 
+            AVG("FINAL") as c, 
+            (SUM(tiene_riesgo)::float / NULLIF(SUM(total_gestiones), 0)) * 100 as r 
+            FROM resumen_calidad_diario ${w}`;
+        const r = await pool.query(q);
+        res.json({ 
+            total_llamadas: Number(r.rows[0].t || 0), 
+            promedio_calidad: `${Number(r.rows[0].c || 0).toFixed(1)}%`, 
+            porcentaje_riesgo: `${Number(r.rows[0].r || 0).toFixed(2)}%` 
+        });
+    } catch (e) { res.status(500).send(e.message); }
 });
 
 app.get('/api/resumen/graficos', async (req, res) => {
@@ -54,6 +54,43 @@ app.get('/api/resumen/graficos', async (req, res) => {
     res.json({ por_dia: d.rows, por_empresa: e.rows, por_contacto: c.rows, por_ejecutivo: j.rows });
 });
 
+app.get('/api/riesgo/cumplimiento', async (req, res) => {
+    try {
+        const w = getFilters(req);
+        // Lógica Python: SUM(variable) / SUM(Q) * 100
+        const sel = RISK_COLS.map(c => `(SUM("${c}")::float / NULLIF(SUM(total_gestiones), 0)) * 100 as "${c}"`).join(',');
+        const q = `SELECT ${sel}, (SUM(tiene_riesgo)::float / NULLIF(SUM(total_gestiones), 0)) * 100 as "FINAL" FROM resumen_calidad_diario ${w}`;
+        const r = await pool.query(q);
+        
+        // Formateamos para que el frontend reciba números limpios
+        const resu = RISK_COLS.map(k => ({ 
+            item: k, 
+            promedio: Number(parseFloat(r.rows[0][k] || 0).toFixed(2))
+        }));
+        resu.push({ item: "FINAL", promedio: Number(parseFloat(r.rows[0].FINAL || 0).toFixed(2)) });
+        res.json(resu);
+    } catch (e) { res.status(500).send(e.message); }
+});
+
+app.get('/api/riesgo/evolucion', async (req, res) => {
+    try {
+        const w = getFilters(req);
+        const sel = RISK_COLS.map(c => `(SUM("${c}")::float / NULLIF(SUM(total_gestiones), 0)) * 100 as "${c}"`).join(',');
+        const q = `SELECT ymd as fecha, ${sel}, (SUM(tiene_riesgo)::float / NULLIF(SUM(total_gestiones), 0)) * 100 as "FINAL" FROM resumen_calidad_diario ${w} GROUP BY ymd ORDER BY ymd`;
+        const r = await pool.query(q);
+        
+        // Convertir strings de Postgres a números para Recharts
+        const formatted = r.rows.map(row => {
+            const newRow = { fecha: row.fecha };
+            Object.keys(row).forEach(key => {
+                if(key !== 'fecha') newRow[key] = Number(parseFloat(row[key] || 0).toFixed(2));
+            });
+            return newRow;
+        });
+        res.json(formatted);
+    } catch (e) { res.status(500).send(e.message); }
+});
+
 app.get('/api/calidad/cumplimiento', async (req, res) => {
     const w = getFilters(req);
     const sel = CAL_COLS.map(c => `AVG("${c}") as "${c}"`).join(',');
@@ -65,10 +102,9 @@ app.get('/api/calidad/cumplimiento', async (req, res) => {
 
 app.get('/api/calidad/evolucion', async (req, res) => {
     const w = getFilters(req);
-    // VOLVEMOS A YMD para que el gráfico tenga puntos, pero con la velocidad de la vista materializada
     const sel = CAL_COLS.map(c => `AVG("${c}") as "${c}"`).join(',');
     const r = await pool.query(`SELECT ymd as fecha, ${sel}, AVG("FINAL") as "FINAL" FROM resumen_calidad_diario ${w} GROUP BY ymd ORDER BY ymd`);
     res.json(r.rows);
 });
 
-app.listen(8000, () => console.log('🚀 CALIDAD RESTAURADA CON GRÁFICOS'));
+app.listen(8000, () => console.log('🚀 Servidor con Lógica de Sumas OK'));

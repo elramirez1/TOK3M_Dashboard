@@ -3,7 +3,6 @@ import axios from 'axios';
 import ExcelFilter from './components/ExcelFilter';
 import Resumen from './pages/Resumen';
 import Calidad from './pages/Calidad';
-import Riesgo from './pages/Riesgo';
 import Login from './components/Login';
 import logo from './assets/logo.jpg';
 
@@ -12,18 +11,13 @@ const api = axios.create({ baseURL: 'http://127.0.0.1:8000/api' });
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [view, setView] = useState('menu');
+  // 1. Agregamos porcentaje_riesgo al estado inicial
   const [stats, setStats] = useState({ total_llamadas: 0, promedio_calidad: '0.0%', porcentaje_riesgo: '0.00%' });
   const [graficos, setGraficos] = useState({ por_dia: [], por_empresa: [], por_contacto: [], por_ejecutivo: [] });
-  
-  // Estados para Calidad
   const [datosCalidad, setDatosCalidad] = useState([]);
   const [evolucionCalidad, setEvolucionCalidad] = useState([]);
-  
-  // Estados para Riesgo
-  const [datosRiesgo, setDatosRiesgo] = useState([]);
-  const [evolucionRiesgo, setEvolucionRiesgo] = useState([]);
-
   const [listas, setListas] = useState({ codigos: [], empresas: [], ejecutivos: [] });
+  
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
   const [codsSel, setCodsSel] = useState([]);
@@ -51,7 +45,9 @@ function App() {
       ]);
       
       setStats(resS.data);
-      setGraficos(resR.data);
+      const worker = new Worker(new URL("./workers/dataWorker.js", import.meta.url)); 
+      worker.postMessage({ type: "PROCESS_CHARTS", data: resR.data.por_empresa }); 
+      worker.onmessage = (e) => setGraficos({...resR.data, por_empresa: e.data.payload});
 
       if (listas.codigos.length === 0) {
         setListas({
@@ -61,7 +57,6 @@ function App() {
         });
       }
 
-      // Carga de Calidad
       if (view === 'calidad') {
         const [resC, resE] = await Promise.all([
           api.get(`/calidad/cumplimiento?${p.toString()}`, config),
@@ -70,17 +65,6 @@ function App() {
         setDatosCalidad(resC.data);
         setEvolucionCalidad(resE.data);
       }
-
-      // Carga de Riesgo (NUEVO)
-      if (view === 'riesgo') {
-        const [resRi, resEvRi] = await Promise.all([
-          api.get(`/riesgo/cumplimiento?${p.toString()}`, config),
-          api.get(`/riesgo/evolucion?${p.toString()}`, config)
-        ]);
-        setDatosRiesgo(resRi.data);
-        setEvolucionRiesgo(resEvRi.data);
-      }
-
     } catch (err) { if (err.response?.status === 401) logout(); }
     finally { setLoading(false); }
   };
@@ -92,6 +76,7 @@ function App() {
 
   if (!token) return <Login onLogin={() => setToken(localStorage.getItem('token'))} />;
 
+  // 2. Mapeamos el valor real de la variable de riesgo
   const modules = [
     { id: 'resumen', name: 'Resumen General', icon: '🌐', value: Number(stats.total_llamadas || 0).toLocaleString() },
     { id: 'calidad', name: 'Protocolo de Calidad', icon: '📊', value: stats.promedio_calidad },
@@ -115,7 +100,8 @@ function App() {
       {view === 'menu' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {modules.map(mod => (
-            <div key={mod.id} onClick={() => (mod.id === 'resumen' || mod.id === 'calidad' || mod.id === 'riesgo') && setView(mod.id)} 
+            <div key={mod.id} 
+                 onClick={() => (mod.id === 'resumen' || mod.id === 'calidad' || mod.id === 'riesgo') && setView(mod.id)} 
                  className="p-10 bg-[#111827] border border-gray-800 rounded-[2.5rem] hover:border-blue-500 cursor-pointer group transition-all shadow-xl">
               <div className="flex justify-between items-start mb-8">
                 <div className="text-6xl grayscale group-hover:grayscale-0">{mod.icon}</div>
@@ -139,7 +125,7 @@ function App() {
           </div>
           {view === 'resumen' && <Resumen graficos={graficos} />}
           {view === 'calidad' && <Calidad data={datosCalidad} evolucion={evolucionCalidad} />}
-          {view === 'riesgo' && <Riesgo data={datosRiesgo} evolucion={evolucionRiesgo} />}
+          {view === 'riesgo' && <div className="p-10 text-center text-gray-500">Próximamente: Detalle de Monitor de Riesgo</div>}
         </div>
       )}
     </div>
