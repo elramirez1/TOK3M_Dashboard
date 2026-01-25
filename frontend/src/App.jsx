@@ -14,136 +14,127 @@ function App() {
   const [view, setView] = useState('menu');
   const [stats, setStats] = useState({ total_llamadas: 0, promedio_calidad: '0.0%', porcentaje_riesgo: '0.00%' });
   const [graficos, setGraficos] = useState({ por_dia: [], por_empresa: [], por_contacto: [], por_ejecutivo: [] });
+  const [listas, setListas] = useState({ empresas: [], ejecutivos: [], contactos: [] });
   
-  // Estados para Calidad
   const [datosCalidad, setDatosCalidad] = useState([]);
-  const [evolucionCalidad, setEvolucionCalidad] = useState([]);
-  
-  // Estados para Riesgo
   const [datosRiesgo, setDatosRiesgo] = useState([]);
-  const [evolucionRiesgo, setEvolucionRiesgo] = useState([]);
-
-  const [listas, setListas] = useState({ codigos: [], empresas: [], ejecutivos: [] });
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
-  const [codsSel, setCodsSel] = useState([]);
   const [empsSel, setEmpsSel] = useState([]);
   const [ejesSel, setEjesSel] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  const logout = () => { localStorage.clear(); setToken(null); };
+  const [contSel, setContSel] = useState([]);
 
   const fetchData = async () => {
     if (!token) return;
-    setLoading(true);
     const config = { headers: { Authorization: `Bearer ${token}` } };
-    const p = new URLSearchParams();
-    if (fechaInicio) p.append('inicio', fechaInicio);
-    if (fechaFin) p.append('fin', fechaFin);
-    empsSel.forEach(v => p.append('empresas', v));
-    codsSel.forEach(v => p.append('codigos', v));
-    ejesSel.forEach(v => p.append('ejecutivos', v));
+    const params = { 
+      inicio: fechaInicio, 
+      fin: fechaFin, 
+      empresas: empsSel.join(','), 
+      ejecutivos: ejesSel.join(','),
+      contactos: contSel.join(',') 
+    };
 
     try {
       const [resS, resR] = await Promise.all([
-        api.get('/stats', config),
-        api.get(`/resumen/graficos?${p.toString()}`, config)
+        api.get('/stats', { params, ...config }),
+        api.get('/resumen/graficos', { params, ...config })
       ]);
       
       setStats(resS.data);
-      setGraficos(resR.data);
 
-      if (listas.codigos.length === 0) {
-        setListas({
-          codigos: [...new Set(resR.data.por_contacto.map(x => x.CODIGO_CONTACTO))],
-          empresas: [...new Set(resR.data.por_empresa.map(x => x.EMPRESA))].sort(),
-          ejecutivos: [...new Set(resR.data.por_ejecutivo.map(x => x.NOMBRE_EJECUTIVO))].sort()
-        });
-      }
+      const worker = new Worker(new URL("./workers/dataWorker.js", import.meta.url));
+      worker.postMessage({ type: 'PROCESS_CHARTS', data: resR.data.por_ejecutivo });
+      worker.onmessage = (e) => {
+        setGraficos({ ...resR.data, por_ejecutivo: e.data.payload });
+        if (listas.empresas.length === 0) {
+          setListas({
+            empresas: [...new Set(resR.data.por_empresa.map(x => x.EMPRESA))].sort(),
+            ejecutivos: [...new Set(resR.data.por_ejecutivo.map(x => x.NOMBRE_EJECUTIVO))].sort(),
+            contactos: [...new Set(resR.data.por_contacto.map(x => x.CODIGO_CONTACTO || x.codigo_contacto))].filter(Boolean).sort()
+          });
+        }
+      };
 
-      // Carga de Calidad
       if (view === 'calidad') {
-        const [resC, resE] = await Promise.all([
-          api.get(`/calidad/cumplimiento?${p.toString()}`, config),
-          api.get(`/calidad/evolucion?${p.toString()}`, config)
-        ]);
-        setDatosCalidad(resC.data);
-        setEvolucionCalidad(resE.data);
+        const res = await api.get('/calidad/cumplimiento', { params, ...config });
+        setDatosCalidad(res.data);
       }
-
-      // Carga de Riesgo (NUEVO)
       if (view === 'riesgo') {
-        const [resRi, resEvRi] = await Promise.all([
-          api.get(`/riesgo/cumplimiento?${p.toString()}`, config),
-          api.get(`/riesgo/evolucion?${p.toString()}`, config)
-        ]);
-        setDatosRiesgo(resRi.data);
-        setEvolucionRiesgo(resEvRi.data);
+        const res = await api.get('/riesgo/cumplimiento', { params, ...config });
+        setDatosRiesgo(res.data);
       }
-
-    } catch (err) { if (err.response?.status === 401) logout(); }
-    finally { setLoading(false); }
+    } catch (err) { console.error(err); }
   };
 
-  useEffect(() => {
-    const timer = setTimeout(() => fetchData(), 200);
-    return () => clearTimeout(timer);
-  }, [token, view, fechaInicio, fechaFin, codsSel, empsSel, ejesSel]);
+  useEffect(() => { fetchData(); }, [token, view, fechaInicio, fechaFin, empsSel, ejesSel, contSel]);
+
+  // FUNCIÓN RESET
+  const resetFiltros = () => {
+    setFechaInicio('');
+    setFechaFin('');
+    setEmpsSel([]);
+    setEjesSel([]);
+    setContSel([]);
+  };
 
   if (!token) return <Login onLogin={() => setToken(localStorage.getItem('token'))} />;
 
-  const modules = [
-    { id: 'resumen', name: 'Resumen General', icon: '🌐', value: Number(stats.total_llamadas || 0).toLocaleString() },
-    { id: 'calidad', name: 'Protocolo de Calidad', icon: '📊', value: stats.promedio_calidad },
-    { id: 'riesgo', name: 'Monitor de Riesgo', icon: '⚠️', value: stats.porcentaje_riesgo },
-    { id: 'emocional', name: 'Análisis Emocional', icon: '🧠', value: '---' },
-    { id: 'pago', name: 'Motivos de No Pago', icon: '💸', value: '---' },
-    { id: 'ppm', name: 'Análisis PPM', icon: '⏱️', value: '---' }
+  const tarjetas = [
+    { id: 'resumen', name: 'Resumen General', icon: '🌐', value: Number(stats.total_llamadas).toLocaleString(), color: 'text-blue-500' },
+    { id: 'calidad', name: 'Protocolo de Calidad', icon: '📊', value: stats.promedio_calidad, color: 'text-emerald-500' },
+    { id: 'riesgo', name: 'Monitor de Riesgo', icon: '⚠️', value: stats.porcentaje_riesgo, color: 'text-red-500' },
+    { id: 'emocional', name: 'Análisis Emocional', icon: '🧠', value: '---', color: 'text-purple-500' },
+    { id: 'pago', name: 'Motivos de No Pago', icon: '💸', value: '---', color: 'text-orange-500' },
+    { id: 'ppm', name: 'Análisis PPM', icon: '⏱️', value: '---', color: 'text-pink-500' }
   ];
 
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-white p-4 md:p-8">
+    <div className="min-h-screen bg-[#0B0F19] text-white p-8">
       <header className="mb-10 flex justify-between items-center border-b border-gray-800 pb-6">
         <img src={logo} onClick={() => setView('menu')} className="h-16 cursor-pointer" alt="Logo" />
-        <div className="flex items-center gap-4">
-          {loading && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>}
-          {view !== 'menu' && <button onClick={() => setView('menu')} className="bg-gray-800 px-6 py-2 rounded-xl text-xs font-bold">MENÚ</button>}
-          <button onClick={logout} className="bg-red-900/20 text-red-500 px-6 py-2 rounded-xl text-xs font-bold border border-red-500/50">SALIR</button>
-        </div>
+        <button onClick={() => {localStorage.clear(); window.location.reload();}} className="bg-red-900/20 text-red-500 px-6 py-2 rounded-xl text-xs font-black border border-red-500/50">SALIR</button>
       </header>
 
       {view === 'menu' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {modules.map(mod => (
-            <div key={mod.id} onClick={() => (mod.id === 'resumen' || mod.id === 'calidad' || mod.id === 'riesgo') && setView(mod.id)} 
-                 className="p-10 bg-[#111827] border border-gray-800 rounded-[2.5rem] hover:border-blue-500 cursor-pointer group transition-all shadow-xl">
+          {tarjetas.map(t => (
+            <div key={t.id} onClick={() => setView(t.id)} className="p-10 bg-[#111827] border border-gray-800 rounded-[2.5rem] hover:border-blue-500 cursor-pointer group transition-all shadow-xl">
               <div className="flex justify-between items-start mb-8">
-                <div className="text-6xl grayscale group-hover:grayscale-0">{mod.icon}</div>
-                <div className="text-4xl font-black text-blue-500">{mod.value}</div>
+                <div className="text-6xl group-hover:scale-110 transition-transform">{t.icon}</div>
+                <div className={`text-4xl font-black ${t.color}`}>{t.value}</div>
               </div>
-              <h2 className="text-2xl font-black uppercase text-gray-400 group-hover:text-white">{mod.name}</h2>
+              <h2 className="text-2xl font-black uppercase text-gray-400 group-hover:text-white italic tracking-tighter">{t.name}</h2>
             </div>
           ))}
         </div>
       ) : (
-        <div className="space-y-6 animate-in fade-in duration-500">
-          <div className="flex flex-col lg:flex-row gap-4 bg-[#111827] p-6 rounded-[2rem] border border-gray-800 shadow-2xl items-end">
+        <div className="space-y-6">
+          <div className="flex flex-wrap gap-4 bg-[#111827] p-6 rounded-[2rem] border border-gray-800 shadow-2xl items-end">
             <div className="grid grid-cols-2 gap-4">
-              <input type="date" value={fechaInicio} onChange={e => setFechaInicio(e.target.value)} className="bg-[#0B0F19] p-3 border border-gray-700 rounded-xl text-xs text-white" />
-              <input type="date" value={fechaFin} onChange={e => setFechaFin(e.target.value)} className="bg-[#0B0F19] p-3 border border-gray-700 rounded-xl text-xs text-white" />
+              <input type="date" value={fechaInicio} onChange={e => setFechaInicio(e.target.value)} className="bg-[#0B0F19] p-3 border border-gray-700 rounded-xl text-xs font-bold text-white" />
+              <input type="date" value={fechaFin} onChange={e => setFechaFin(e.target.value)} className="bg-[#0B0F19] p-3 border border-gray-700 rounded-xl text-xs font-bold text-white" />
             </div>
             <ExcelFilter label="Empresa" options={listas.empresas} selected={empsSel} onToggle={v => setEmpsSel(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v])} onClear={() => setEmpsSel([])} />
-            <ExcelFilter label="Contacto" options={listas.codigos} selected={codsSel} onToggle={v => setCodsSel(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v])} onClear={() => setCodsSel([])} />
             <ExcelFilter label="Ejecutivo" options={listas.ejecutivos} selected={ejesSel} onToggle={v => setEjesSel(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v])} onClear={() => setEjesSel([])} />
-            <button onClick={() => {setFechaInicio(''); setFechaFin(''); setCodsSel([]); setEmpsSel([]); setEjesSel([]);}} className="bg-gray-800 px-8 py-3 rounded-xl text-[10px] font-black border border-gray-700">RESET</button>
+            <ExcelFilter label="Contacto" options={listas.contactos} selected={contSel} onToggle={v => setContSel(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v])} onClear={() => setContSel([])} />
+            
+            {/* BOTÓN RESET */}
+            <button 
+              onClick={resetFiltros}
+              className="bg-blue-900/20 text-blue-400 px-6 py-4 rounded-2xl text-[10px] font-black border border-blue-500/30 hover:bg-blue-500/40 transition-all uppercase tracking-widest"
+            >
+              🔄 Resetear Filtros
+            </button>
+
+            <button onClick={() => setView('menu')} className="bg-gray-800 px-8 py-3 rounded-xl text-[10px] font-black border border-gray-700 hover:bg-gray-700 ml-auto">VOLVER AL MENÚ</button>
           </div>
           {view === 'resumen' && <Resumen graficos={graficos} />}
-          {view === 'calidad' && <Calidad data={datosCalidad} evolucion={evolucionCalidad} />}
-          {view === 'riesgo' && <Riesgo data={datosRiesgo} evolucion={evolucionRiesgo} />}
+          {view === 'calidad' && <Calidad data={datosCalidad} evolucion={[]} />}
+          {view === 'riesgo' && <Riesgo data={datosRiesgo} evolucion={[]} />}
         </div>
       )}
     </div>
   );
 }
-
 export default App;
