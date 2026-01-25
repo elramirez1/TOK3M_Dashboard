@@ -3,7 +3,6 @@ import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 
 const COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#EC4899'];
 
-// TOOLTIP PERSONALIZADO (Integrado en tu diseño original)
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
@@ -21,19 +20,6 @@ const CustomTooltip = ({ active, payload, label }) => {
 const CustomYAxisTick = (props) => {
   const { x, y, payload } = props;
   const name = payload.value || "";
-  const words = name.split(' ');
-  if (words.length > 2) {
-    const line1 = words.slice(0, 2).join(' ');
-    const line2 = words.slice(2).join(' ');
-    return (
-      <g transform={`translate(${x},${y})`}>
-        <text x={-10} y={0} textAnchor="end" fill="#9CA3AF" fontSize={8} fontWeight="bold">
-          <tspan x="-10" dy="-0.2em">{line1}</tspan>
-          <tspan x="-10" dy="1.2em">{line2}</tspan>
-        </text>
-      </g>
-    );
-  }
   return (
     <g transform={`translate(${x},${y})`}>
       <text x={-10} y={4} textAnchor="end" fill="#9CA3AF" fontSize={9} fontWeight="bold">{name}</text>
@@ -42,11 +28,28 @@ const CustomYAxisTick = (props) => {
 };
 
 const Resumen = ({ graficos }) => {
-  const por_dia = graficos.por_dia || [];
-  const por_ejecutivo = graficos.por_ejecutivo || [];
-  const por_contacto = graficos.por_contacto || [];
-  const por_empresa = graficos.por_empresa || [];
-  const totalFiltrado = por_dia.reduce((acc, curr) => acc + (Number(curr.cantidad) || 0), 0);
+  // Aseguramos datos para cada gráfico
+  const por_dia = (graficos.por_dia || []).map(d => ({
+    ...d,
+    cantidad: Number(d.cantidad || d.total_gestiones || 0)
+  }));
+
+  const por_ejecutivo = (graficos.por_ejecutivo || []).map(e => ({
+    ...e,
+    cantidad: Number(e.cantidad || e.total_gestiones || 0)
+  }));
+
+  // NORMALIZACIÓN PARA LA TORTA (Busca minúsculas o mayúsculas)
+  const por_contacto = (graficos.por_contacto || []).map(c => ({
+    cantidad: Number(c.cantidad || c.total_gestiones || 0),
+    nombre: c.CODIGO_CONTACTO || c.codigo_contacto || "DESCONOCIDO"
+  }));
+  
+  const por_empresa = [...(graficos.por_empresa || [])]
+    .map(em => ({ ...em, cantidad: Number(em.cantidad || em.total_gestiones || 0) }))
+    .sort((a, b) => b.cantidad - a.cantidad);
+  
+  const totalFiltrado = por_dia.reduce((acc, curr) => acc + curr.cantidad, 0);
 
   return (
     <div className="space-y-8">
@@ -73,7 +76,7 @@ const Resumen = ({ graficos }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[900px]">
-        {/* RANKING EJECUTIVOS (Scrollable) */}
+        {/* RANKING EJECUTIVOS */}
         <div className="bg-[#111827] p-10 rounded-[2.5rem] border border-gray-800 flex flex-col shadow-xl overflow-hidden">
           <h3 className="text-2xl font-black text-emerald-400 mb-8 uppercase italic tracking-tighter">Ranking Ejecutivos</h3>
           <div className="flex-1 overflow-y-auto pr-4 custom-scrollbar">
@@ -89,13 +92,22 @@ const Resumen = ({ graficos }) => {
         </div>
 
         <div className="flex flex-col gap-8 h-full">
-          {/* DISTRIBUCION CONTACTO (PieChart) */}
+          {/* DISTRIBUCION CONTACTO */}
           <div className="bg-[#111827] p-10 rounded-[2.5rem] border border-gray-800 flex-1 shadow-xl flex flex-col relative">
             <h3 className="text-xl font-black text-blue-400 mb-2 uppercase italic tracking-tighter">Distribución Contacto</h3>
             <div className="flex-1">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={por_contacto} dataKey="cantidad" nameKey="CODIGO_CONTACTO" cx="50%" cy="45%" innerRadius="55%" outerRadius="95%" paddingAngle={4}>
+                  <Pie 
+                    data={por_contacto} 
+                    dataKey="cantidad" 
+                    nameKey="nombre" 
+                    cx="50%" 
+                    cy="45%" 
+                    innerRadius="55%" 
+                    outerRadius="95%" 
+                    paddingAngle={4}
+                  >
                     {por_contacto.map((e, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="none" />)}
                   </Pie>
                   <Tooltip content={<CustomTooltip />} />
@@ -105,7 +117,7 @@ const Resumen = ({ graficos }) => {
             </div>
           </div>
 
-          {/* GESTIONES POR EMPRESA (Scrollable) */}
+          {/* GESTIONES POR EMPRESA */}
           <div className="bg-[#111827] p-8 rounded-[2.5rem] border border-gray-800 flex-1 shadow-xl flex flex-col overflow-hidden">
             <h3 className="text-xl font-black text-purple-400 mb-4 uppercase italic tracking-tighter">Gestiones por Empresa</h3>
             <div className="flex-1 overflow-y-auto pr-4 custom-scrollbar">
