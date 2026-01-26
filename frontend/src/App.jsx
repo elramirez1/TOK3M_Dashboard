@@ -17,6 +17,7 @@ function App() {
   const [listas, setListas] = useState({ empresas: [], ejecutivos: [], contactos: [] });
   
   const [datosCalidad, setDatosCalidad] = useState([]);
+  const [datosEvolucion, setDatosEvolucion] = useState([]);
   const [datosRiesgo, setDatosRiesgo] = useState([]);
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
@@ -57,9 +58,14 @@ function App() {
       };
 
       if (view === 'calidad') {
-        const res = await api.get('/calidad/cumplimiento', { params, ...config });
-        setDatosCalidad(res.data);
+        const [resC, resE] = await Promise.all([
+          api.get('/calidad/cumplimiento', { params, ...config }),
+          api.get('/calidad/evolucion', { params, ...config })
+        ]);
+        setDatosCalidad(resC.data);
+        setDatosEvolucion(resE.data);
       }
+      
       if (view === 'riesgo') {
         const res = await api.get('/riesgo/cumplimiento', { params, ...config });
         setDatosRiesgo(res.data);
@@ -69,7 +75,6 @@ function App() {
 
   useEffect(() => { fetchData(); }, [token, view, fechaInicio, fechaFin, empsSel, ejesSel, contSel]);
 
-  // FUNCIÓN RESET
   const resetFiltros = () => {
     setFechaInicio('');
     setFechaFin('');
@@ -119,7 +124,6 @@ function App() {
             <ExcelFilter label="Ejecutivo" options={listas.ejecutivos} selected={ejesSel} onToggle={v => setEjesSel(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v])} onClear={() => setEjesSel([])} />
             <ExcelFilter label="Contacto" options={listas.contactos} selected={contSel} onToggle={v => setContSel(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v])} onClear={() => setContSel([])} />
             
-            {/* BOTÓN RESET */}
             <button 
               onClick={resetFiltros}
               className="bg-blue-900/20 text-blue-400 px-6 py-4 rounded-2xl text-[10px] font-black border border-blue-500/30 hover:bg-blue-500/40 transition-all uppercase tracking-widest"
@@ -130,11 +134,12 @@ function App() {
             <button onClick={() => setView('menu')} className="bg-gray-800 px-8 py-3 rounded-xl text-[10px] font-black border border-gray-700 hover:bg-gray-700 ml-auto">VOLVER AL MENÚ</button>
           </div>
           {view === 'resumen' && <Resumen graficos={graficos} />}
-          {view === 'calidad' && <Calidad data={datosCalidad} evolucion={[]} />}
+          {view === 'calidad' && <Calidad data={datosCalidad} evolucion={datosEvolucion} />}
           {view === 'riesgo' && <Riesgo data={datosRiesgo} evolucion={[]} />}
         </div>
       )}
     </div>
   );
 }
+
 export default App;
