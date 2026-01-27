@@ -67,8 +67,12 @@ function App() {
       }
       
       if (view === 'riesgo') {
-        const res = await api.get('/riesgo/cumplimiento', { params, ...config });
-        setDatosRiesgo(res.data);
+        const [resC, resE] = await Promise.all([
+          api.get('/riesgo/cumplimiento', { params, ...config }),
+          api.get('/riesgo/evolucion', { params, ...config })
+        ]);
+        setDatosRiesgo(resC.data);
+        setDatosEvolucion(resE.data);
       }
     } catch (err) { console.error(err); }
   };
@@ -135,7 +139,7 @@ function App() {
           </div>
           {view === 'resumen' && <Resumen graficos={graficos} />}
           {view === 'calidad' && <Calidad data={datosCalidad} evolucion={datosEvolucion} />}
-          {view === 'riesgo' && <Riesgo data={datosRiesgo} evolucion={[]} />}
+          {view === 'riesgo' && <Riesgo data={datosRiesgo} evolucion={datosEvolucion} />}
         </div>
       )}
     </div>
