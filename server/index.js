@@ -20,15 +20,13 @@ const resumenRoutes = require('./routes/resumen');
 const calidadRoutes = require('./routes/calidad');
 const riesgoRoutes = require('./routes/riesgo');
 const motivosRoutes = require('./routes/motivos');
-const emocionRoutes = require('./routes/emocion');
 
 app.use('/api/resumen', resumenRoutes);
 app.use('/api/calidad', calidadRoutes);
 app.use('/api/riesgo', riesgoRoutes);
 app.use('/api/motivos', motivosRoutes);
-app.use('/api/emocion', emocionRoutes);
 
-// --- ENDPOINT PARA FILTROS (NUEVO) ---
+// --- ENDPOINT PARA FILTROS ---
 app.get('/api/filtros', async (req, res) => {
     try {
         const empresas = await pool.query('SELECT DISTINCT empresa FROM resumen_general ORDER BY empresa');

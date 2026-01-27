@@ -4,6 +4,7 @@ import ExcelFilter from './components/ExcelFilter';
 import Resumen from './pages/Resumen';
 import Calidad from './pages/Calidad';
 import Riesgo from './pages/Riesgo';
+import Motivos from './pages/Motivos';
 import Login from './components/Login';
 import logo from './assets/logo.jpg';
 
@@ -19,6 +20,7 @@ function App() {
   const [datosCalidad, setDatosCalidad] = useState([]);
   const [datosEvolucion, setDatosEvolucion] = useState([]);
   const [datosRiesgo, setDatosRiesgo] = useState([]);
+  const [datosMotivos, setDatosMotivos] = useState([]);
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
   const [empsSel, setEmpsSel] = useState([]);
@@ -72,6 +74,15 @@ function App() {
           api.get('/riesgo/evolucion', { params, ...config })
         ]);
         setDatosRiesgo(resC.data);
+        setDatosEvolucion(resE.data);
+      }
+
+      if (view === 'pago') {
+        const [resM, resE] = await Promise.all([
+          api.get('/motivos/cumplimiento', { params, ...config }),
+          api.get('/motivos/evolucion', { params, ...config })
+        ]);
+        setDatosMotivos(resM.data);
         setDatosEvolucion(resE.data);
       }
     } catch (err) { console.error(err); }
@@ -140,6 +151,7 @@ function App() {
           {view === 'resumen' && <Resumen graficos={graficos} />}
           {view === 'calidad' && <Calidad data={datosCalidad} evolucion={datosEvolucion} />}
           {view === 'riesgo' && <Riesgo data={datosRiesgo} evolucion={datosEvolucion} />}
+          {view === 'pago' && <Motivos data={datosMotivos} evolucion={datosEvolucion} />}
         </div>
       )}
     </div>
