@@ -21,10 +21,13 @@ router.get('/cumplimiento', async (req, res) => {
     try {
         const pool = req.app.get('pool');
         const w = getFilters(req);
+        // Promedio de cada motivo individual
         const sel = MOT_COLS.map(c => `AVG(COALESCE("${c}", 0)) as "${c}"`).join(',');
-        const q = `SELECT ${sel}, AVG(COALESCE("TOTAL_MOTIVOS", 0)) as "FINAL" FROM resumen_motivo ${w}`;
+        // El FINAL es el % de gestiones que tienen algún motivo (tiene_motivo * 100)
+        const q = `SELECT ${sel}, (SUM(tiene_motivo)::float / NULLIF(SUM(total_gestiones), 0)) * 100 as "FINAL" FROM resumen_motivo ${w}`;
         const r = await pool.query(q);
         const data = r.rows[0] || {};
+        
         const resu = MOT_COLS.map(k => ({ 
             item: k, 
             promedio: Math.round(parseFloat(data[k] || 0) * 10) / 10 
@@ -39,7 +42,7 @@ router.get('/evolucion', async (req, res) => {
         const pool = req.app.get('pool');
         const w = getFilters(req);
         const sel = MOT_COLS.map(c => `AVG(COALESCE("${c}", 0)) as "${c}"`).join(',');
-        const q = `SELECT ymd as fecha, ${sel}, AVG(COALESCE("TOTAL_MOTIVOS", 0)) as "FINAL" 
+        const q = `SELECT ymd as fecha, ${sel}, (SUM(tiene_motivo)::float / NULLIF(SUM(total_gestiones), 0)) * 100 as "FINAL" 
                   FROM resumen_motivo ${w} 
                   GROUP BY ymd ORDER BY ymd`;
         const r = await pool.query(q);
