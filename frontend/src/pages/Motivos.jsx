@@ -32,7 +32,6 @@ const Motivos = ({ data, evolucion }) => {
 
   return (
     <div className="space-y-10 pb-20 animate-in fade-in duration-700">
-      {/* CARD PRINCIPAL */}
       <div className="bg-[#111827] p-10 rounded-[2.5rem] border-2 border-gray-800 shadow-2xl relative overflow-hidden">
         <div className="absolute top-6 right-10 text-right z-10">
           <div className="text-[10px] font-black text-orange-400 uppercase tracking-[0.2em] mb-1">Incidencia Total</div>
@@ -48,15 +47,7 @@ const Motivos = ({ data, evolucion }) => {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={variablesMotivos} margin={{ bottom: 70 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1F2937" vertical={false} />
-              <XAxis 
-                dataKey="item" 
-                stroke="#9CA3AF" 
-                interval={0} 
-                angle={-45} 
-                textAnchor="end" 
-                fontSize={10} 
-                fontWeight="900" 
-              />
+              <XAxis dataKey="item" stroke="#9CA3AF" interval={0} angle={-45} textAnchor="end" fontSize={10} fontWeight="900" />
               <YAxis stroke="#4B5563" />
               <Tooltip content={<CustomTooltip />} cursor={{fill: '#1F2937', opacity: 0.4}} />
               <Bar dataKey="promedio" radius={[6, 6, 0, 0]} barSize={35}>
@@ -69,7 +60,6 @@ const Motivos = ({ data, evolucion }) => {
         </div>
       </div>
 
-      {/* MINI GRÁFICOS DE EVOLUCIÓN */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {variablesMotivos.map((variable, index) => (
           <div key={variable.item} className="bg-[#111827] p-6 rounded-[2.5rem] border border-gray-800 shadow-xl hover:border-gray-600 transition-colors">
@@ -81,19 +71,14 @@ const Motivos = ({ data, evolucion }) => {
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={evolucion}>
                   <defs>
-                    <linearGradient id={`grad-${index}`} x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id={`grad-mot-${index}`} x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.3}/>
                       <stop offset="95%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <Area 
-                    type="monotone" 
-                    dataKey={variable.item} 
-                    stroke={COLORS[index % COLORS.length]} 
-                    fill={`url(#grad-${index})`} 
-                    strokeWidth={3} 
-                    dot={false} 
-                  />
+                  {/* Tooltip añadido aquí */}
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area type="monotone" dataKey={variable.item} stroke={COLORS[index % COLORS.length]} fill={`url(#grad-mot-${index})`} strokeWidth={3} dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -101,7 +86,6 @@ const Motivos = ({ data, evolucion }) => {
         ))}
       </div>
 
-      {/* FOOTER EVOLUCIÓN FINAL */}
       <div className="bg-[#111827] p-8 rounded-[2.5rem] border-2 border-orange-500/30 shadow-2xl">
         <div className="flex justify-between items-center mb-6">
           <h4 className="text-white font-black text-xl italic uppercase">Evolución Incidencia General</h4>
@@ -111,14 +95,7 @@ const Motivos = ({ data, evolucion }) => {
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={evolucion}>
               <Tooltip content={<CustomTooltip />} />
-              <Area 
-                type="monotone" 
-                dataKey="FINAL" 
-                stroke="#f97316" 
-                fill="#f9731633" 
-                strokeWidth={5} 
-                dot={{ r: 4, fill: '#f97316' }} 
-              />
+              <Area type="monotone" dataKey="FINAL" stroke="#f97316" fill="#f9731633" strokeWidth={5} dot={{ r: 4, fill: '#f97316' }} />
             </AreaChart>
           </ResponsiveContainer>
         </div>

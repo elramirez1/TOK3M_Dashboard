@@ -28,12 +28,16 @@ app.get('/api/stats', async (req, res) => {
     try {
         const { inicio, fin } = req.query;
         let w = '';
-        if (inicio && fin) w = `WHERE ymd BETWEEN '${inicio.replace(/-/g, '')}' AND '${fin.replace(/-/g, '')}'`;
+        if (inicio && fin) {
+            const i = inicio.replace(/-/g, '');
+            const f = fin.replace(/-/g, '');
+            w = `WHERE ymd BETWEEN '${i}' AND '${f}'`;
+        }
         
         const qGen = `SELECT SUM(total_gestiones)::bigint as t FROM resumen_general ${w}`;
         const qCal = `SELECT AVG("FINAL") as c FROM resumen_calidad ${w}`;
         const qRisk = `SELECT (SUM(tiene_riesgo)::float / NULLIF(SUM(total_gestiones), 0)) * 100 as r FROM resumen_riesgo ${w}`;
-        const qMot = `SELECT (SUM(tiene_motivo)::float / NULLIF(SUM(total_gestiones), 0)) * 100 as m FROM resumen_motivo ${w}`;
+        const qMot = `SELECT AVG(tiene_motivo) as m FROM resumen_motivo ${w}`;
         
         const [resGen, resCal, resRisk, resMot] = await Promise.all([
             pool.query(qGen),
@@ -46,9 +50,10 @@ app.get('/api/stats', async (req, res) => {
             total_llamadas: Number(resGen.rows[0].t || 0), 
             promedio_calidad: `${Number(resCal.rows[0].c || 0).toFixed(1)}%`,
             porcentaje_riesgo: `${Number(resRisk.rows[0].r || 0).toFixed(2)}%`,
-            porcentaje_motivo: `${Number(resMot.rows[0].m || 0).toFixed(2)}%`
+            // Ahora con el % agregado al final
+            porcentaje_motivo: `${Number(resMot.rows[0].m || 0).toFixed(1)}%`
         });
     } catch (e) { res.status(500).send(e.message); }
 });
 
-app.listen(8000, () => console.log('🚀 SERVIDOR COMPLETO EN PUERTO 8000'));
+app.listen(8000, () => console.log('🚀 SERVIDOR FINALIZADO EN PUERTO 8000'));

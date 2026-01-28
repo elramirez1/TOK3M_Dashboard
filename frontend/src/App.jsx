@@ -13,7 +13,7 @@ const api = axios.create({ baseURL: 'http://127.0.0.1:8000/api' });
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [view, setView] = useState('menu');
-  const [stats, setStats] = useState({ total_llamadas: 0, promedio_calidad: '0.0%', porcentaje_riesgo: '0.00%' });
+  const [stats, setStats] = useState({ total_llamadas: 0, promedio_calidad: '0.0%', porcentaje_riesgo: '0.00%', porcentaje_motivo: '0.00%' });
   const [graficos, setGraficos] = useState({ por_dia: [], por_empresa: [], por_contacto: [], por_ejecutivo: [] });
   const [listas, setListas] = useState({ empresas: [], ejecutivos: [], contactos: [] });
   
@@ -105,7 +105,7 @@ function App() {
     { id: 'calidad', name: 'Protocolo de Calidad', icon: '📊', value: stats.promedio_calidad, color: 'text-emerald-500' },
     { id: 'riesgo', name: 'Monitor de Riesgo', icon: '⚠️', value: stats.porcentaje_riesgo, color: 'text-red-500' },
     { id: 'emocional', name: 'Análisis Emocional', icon: '🧠', value: '---', color: 'text-purple-500' },
-    { id: 'pago', name: 'Motivos de No Pago', icon: '💸', value: '---', color: 'text-orange-500' },
+    { id: 'pago', name: 'Motivos de No Pago', icon: '💸', value: stats.porcentaje_motivo, color: 'text-orange-500' },
     { id: 'ppm', name: 'Análisis PPM', icon: '⏱️', value: '---', color: 'text-pink-500' }
   ];
 

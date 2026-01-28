@@ -6,7 +6,7 @@ const getFilters = (req) => {
     let f = [];
     if (inicio && fin) f.push(`ymd BETWEEN '${inicio.replace(/-/g, '')}' AND '${fin.replace(/-/g, '')}'`);
     const proc = (col, val) => {
-        if (!val) return;
+        if (!val || val === 'null' || val === '') return;
         f.push(`${col} = ANY(string_to_array('${val}', ','))`);
     };
     proc('empresa', empresas);
@@ -21,10 +21,11 @@ router.get('/cumplimiento', async (req, res) => {
     try {
         const pool = req.app.get('pool');
         const w = getFilters(req);
-        // Promedio de cada motivo individual
+        
+        // Calculamos el promedio simple de cada columna y del FINAL
         const sel = MOT_COLS.map(c => `AVG(COALESCE("${c}", 0)) as "${c}"`).join(',');
-        // El FINAL es el % de gestiones que tienen algún motivo (tiene_motivo * 100)
-        const q = `SELECT ${sel}, (SUM(tiene_motivo)::float / NULLIF(SUM(total_gestiones), 0)) * 100 as "FINAL" FROM resumen_motivo ${w}`;
+        const q = `SELECT ${sel}, AVG(tiene_motivo) as "FINAL" FROM resumen_motivo ${w}`;
+        
         const r = await pool.query(q);
         const data = r.rows[0] || {};
         
@@ -32,9 +33,14 @@ router.get('/cumplimiento', async (req, res) => {
             item: k, 
             promedio: Math.round(parseFloat(data[k] || 0) * 10) / 10 
         }));
+        
+        // Aquí enviamos el 71.6 directo, sin multiplicaciones locas
         resu.push({ item: "FINAL", promedio: Math.round(parseFloat(data.FINAL || 0) * 10) / 10 });
+        
         res.json(resu);
-    } catch (e) { res.status(500).send(e.message); }
+    } catch (e) { 
+        res.status(500).send(e.message); 
+    }
 });
 
 router.get('/evolucion', async (req, res) => {
@@ -42,12 +48,16 @@ router.get('/evolucion', async (req, res) => {
         const pool = req.app.get('pool');
         const w = getFilters(req);
         const sel = MOT_COLS.map(c => `AVG(COALESCE("${c}", 0)) as "${c}"`).join(',');
-        const q = `SELECT ymd as fecha, ${sel}, (SUM(tiene_motivo)::float / NULLIF(SUM(total_gestiones), 0)) * 100 as "FINAL" 
+        
+        const q = `SELECT ymd as fecha, ${sel}, AVG(tiene_motivo) as "FINAL" 
                   FROM resumen_motivo ${w} 
                   GROUP BY ymd ORDER BY ymd`;
+                  
         const r = await pool.query(q);
         res.json(r.rows);
-    } catch (e) { res.status(500).send(e.message); }
+    } catch (e) { 
+        res.status(500).send(e.message); 
+    }
 });
 
 module.exports = router;
