@@ -5,6 +5,7 @@ import Resumen from './pages/Resumen';
 import Calidad from './pages/Calidad';
 import Riesgo from './pages/Riesgo';
 import Motivos from './pages/Motivos';
+import Emocional from './pages/Emocional';
 import Login from './components/Login';
 import logo from './assets/logo.jpg';
 
@@ -13,7 +14,14 @@ const api = axios.create({ baseURL: 'http://127.0.0.1:8000/api' });
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [view, setView] = useState('menu');
-  const [stats, setStats] = useState({ total_llamadas: 0, promedio_calidad: '0.0%', porcentaje_riesgo: '0.00%', porcentaje_motivo: '0.00%' });
+  const [stats, setStats] = useState({ 
+    total_llamadas: 0, 
+    promedio_calidad: '0.0%', 
+    porcentaje_riesgo: '0.00%', 
+    porcentaje_motivo: '0.00%',
+    promedio_emocion: '0.0'
+  });
+  
   const [graficos, setGraficos] = useState({ por_dia: [], por_empresa: [], por_contacto: [], por_ejecutivo: [] });
   const [listas, setListas] = useState({ empresas: [], ejecutivos: [], contactos: [] });
   
@@ -21,6 +29,8 @@ function App() {
   const [datosEvolucion, setDatosEvolucion] = useState([]);
   const [datosRiesgo, setDatosRiesgo] = useState([]);
   const [datosMotivos, setDatosMotivos] = useState([]);
+  const [datosEmocion, setDatosEmocion] = useState([]);
+  
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
   const [empsSel, setEmpsSel] = useState([]);
@@ -85,17 +95,23 @@ function App() {
         setDatosMotivos(resM.data);
         setDatosEvolucion(resE.data);
       }
+
+      if (view === 'emocional') {
+        const [resEm, resEv] = await Promise.all([
+          api.get('/emocion/cumplimiento', { params, ...config }),
+          api.get('/emocion/evolucion', { params, ...config })
+        ]);
+        setDatosEmocion(resEm.data);
+        setDatosEvolucion(resEv.data);
+      }
     } catch (err) { console.error(err); }
   };
 
   useEffect(() => { fetchData(); }, [token, view, fechaInicio, fechaFin, empsSel, ejesSel, contSel]);
 
   const resetFiltros = () => {
-    setFechaInicio('');
-    setFechaFin('');
-    setEmpsSel([]);
-    setEjesSel([]);
-    setContSel([]);
+    setFechaInicio(''); setFechaFin('');
+    setEmpsSel([]); setEjesSel([]); setContSel([]);
   };
 
   if (!token) return <Login onLogin={() => setToken(localStorage.getItem('token'))} />;
@@ -104,7 +120,7 @@ function App() {
     { id: 'resumen', name: 'Resumen General', icon: '🌐', value: Number(stats.total_llamadas).toLocaleString(), color: 'text-blue-500' },
     { id: 'calidad', name: 'Protocolo de Calidad', icon: '📊', value: stats.promedio_calidad, color: 'text-emerald-500' },
     { id: 'riesgo', name: 'Monitor de Riesgo', icon: '⚠️', value: stats.porcentaje_riesgo, color: 'text-red-500' },
-    { id: 'emocional', name: 'Análisis Emocional', icon: '🧠', value: '---', color: 'text-purple-500' },
+    { id: 'emocional', name: 'Análisis Emocional', icon: '🧠', value: stats.promedio_emocion, color: 'text-purple-500' },
     { id: 'pago', name: 'Motivos de No Pago', icon: '💸', value: stats.porcentaje_motivo, color: 'text-orange-500' },
     { id: 'ppm', name: 'Análisis PPM', icon: '⏱️', value: '---', color: 'text-pink-500' }
   ];
@@ -139,19 +155,14 @@ function App() {
             <ExcelFilter label="Ejecutivo" options={listas.ejecutivos} selected={ejesSel} onToggle={v => setEjesSel(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v])} onClear={() => setEjesSel([])} />
             <ExcelFilter label="Contacto" options={listas.contactos} selected={contSel} onToggle={v => setContSel(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v])} onClear={() => setContSel([])} />
             
-            <button 
-              onClick={resetFiltros}
-              className="bg-blue-900/20 text-blue-400 px-6 py-4 rounded-2xl text-[10px] font-black border border-blue-500/30 hover:bg-blue-500/40 transition-all uppercase tracking-widest"
-            >
-              🔄 Resetear Filtros
-            </button>
-
+            <button onClick={resetFiltros} className="bg-blue-900/20 text-blue-400 px-6 py-4 rounded-2xl text-[10px] font-black border border-blue-500/30 hover:bg-blue-500/40 transition-all uppercase tracking-widest">🔄 Resetear Filtros</button>
             <button onClick={() => setView('menu')} className="bg-gray-800 px-8 py-3 rounded-xl text-[10px] font-black border border-gray-700 hover:bg-gray-700 ml-auto">VOLVER AL MENÚ</button>
           </div>
           {view === 'resumen' && <Resumen graficos={graficos} />}
           {view === 'calidad' && <Calidad data={datosCalidad} evolucion={datosEvolucion} />}
           {view === 'riesgo' && <Riesgo data={datosRiesgo} evolucion={datosEvolucion} />}
           {view === 'pago' && <Motivos data={datosMotivos} evolucion={datosEvolucion} />}
+          {view === 'emocional' && <Emocional data={datosEmocion} evolucion={datosEvolucion} />}
         </div>
       )}
     </div>

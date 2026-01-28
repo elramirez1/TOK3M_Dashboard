@@ -18,11 +18,13 @@ const resumenRoutes = require('./routes/resumen');
 const calidadRoutes = require('./routes/calidad');
 const riesgoRoutes = require('./routes/riesgo');
 const motivosRoutes = require('./routes/motivos');
+const emocionRoutes = require('./routes/emocion');
 
 app.use('/api/resumen', resumenRoutes);
 app.use('/api/calidad', calidadRoutes);
 app.use('/api/riesgo', riesgoRoutes);
 app.use('/api/motivos', motivosRoutes);
+app.use('/api/emocion', emocionRoutes);
 
 app.get('/api/stats', async (req, res) => {
     try {
@@ -38,22 +40,23 @@ app.get('/api/stats', async (req, res) => {
         const qCal = `SELECT AVG("FINAL") as c FROM resumen_calidad ${w}`;
         const qRisk = `SELECT (SUM(tiene_riesgo)::float / NULLIF(SUM(total_gestiones), 0)) * 100 as r FROM resumen_riesgo ${w}`;
         const qMot = `SELECT AVG(tiene_motivo) as m FROM resumen_motivo ${w}`;
+        const qEmo = `SELECT AVG("TOTAL_EMOCION") as e FROM resumen_emocion ${w}`;
         
-        const [resGen, resCal, resRisk, resMot] = await Promise.all([
-            pool.query(qGen),
-            pool.query(qCal),
-            pool.query(qRisk),
-            pool.query(qMot)
+        const [resGen, resCal, resRisk, resMot, resEmo] = await Promise.all([
+            pool.query(qGen), pool.query(qCal), pool.query(qRisk), pool.query(qMot), pool.query(qEmo)
         ]);
+
+        // Mantenemos el valor original (0.6) y solo damos formato de 1 decimal
+        const emoDisplay = Number(resEmo.rows[0].e || 0).toFixed(1);
 
         res.json({ 
             total_llamadas: Number(resGen.rows[0].t || 0), 
             promedio_calidad: `${Number(resCal.rows[0].c || 0).toFixed(1)}%`,
             porcentaje_riesgo: `${Number(resRisk.rows[0].r || 0).toFixed(2)}%`,
-            // Ahora con el % agregado al final
-            porcentaje_motivo: `${Number(resMot.rows[0].m || 0).toFixed(1)}%`
+            porcentaje_motivo: `${Number(resMot.rows[0].m || 0).toFixed(1)}%`,
+            promedio_emocion: `${emoDisplay}%` 
         });
     } catch (e) { res.status(500).send(e.message); }
 });
 
-app.listen(8000, () => console.log('🚀 SERVIDOR FINALIZADO EN PUERTO 8000'));
+app.listen(8000, () => console.log('🚀 SERVIDOR CORRIENDO - VALORES ORIGINALES'));
