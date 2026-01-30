@@ -73,14 +73,28 @@ function App() {
 
   if (!token) return <Login onLogin={() => setToken(localStorage.getItem('token'))} />;
 
-  // Formateador para la tarjeta de PPM con 1 decimal
   const displayPpm = Number(stats.promedio_ppm || 0).toFixed(1);
 
   return (
     <div className="min-h-screen bg-[#0B0F19] text-white p-8">
       <header className="mb-10 flex justify-between items-center border-b border-gray-800 pb-6">
         <img src={logo} onClick={() => setView('menu')} className="h-16 cursor-pointer" alt="Logo" />
-        <button onClick={() => {localStorage.clear(); window.location.reload();}} className="bg-red-900/20 text-red-500 px-6 py-2 rounded-xl text-xs font-black border border-red-500/50">SALIR</button>
+        <div className="flex gap-4">
+          {view !== 'menu' && (
+            <button 
+              onClick={() => setView('menu')} 
+              className="bg-emerald-900/20 text-emerald-500 px-6 py-2 rounded-xl text-xs font-black border border-emerald-500/50 cursor-pointer hover:bg-emerald-500 hover:text-white transition-all uppercase tracking-widest"
+            >
+              MENÚ
+            </button>
+          )}
+          <button 
+            onClick={() => {localStorage.clear(); window.location.reload();}} 
+            className="bg-red-900/20 text-red-500 px-6 py-2 rounded-xl text-xs font-black border border-red-500/50 cursor-pointer hover:bg-red-500 hover:text-white transition-all uppercase tracking-widest"
+          >
+            SALIR
+          </button>
+        </div>
       </header>
 
       {view === 'menu' ? (
@@ -104,17 +118,35 @@ function App() {
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="flex flex-wrap gap-4 bg-[#111827] p-6 rounded-[2rem] border border-gray-800 shadow-2xl items-end">
-            <div className="grid grid-cols-2 gap-4">
-              <input type="date" value={fechaInicio} onChange={e => setFechaInicio(e.target.value)} className="bg-[#0B0F19] p-3 border border-gray-700 rounded-xl text-xs font-bold [color-scheme:dark]" />
-              <input type="date" value={fechaFin} onChange={e => setFechaFin(e.target.value)} className="bg-[#0B0F19] p-3 border border-gray-700 rounded-xl text-xs font-bold [color-scheme:dark]" />
+          {/* BARRA DE FILTROS ALINEADA CENTRADA */}
+          <div className="flex flex-wrap items-center gap-4 bg-[#111827] p-6 rounded-[2rem] border border-gray-800 shadow-2xl h-fit">
+            <div className="flex items-center gap-4">
+              <input 
+                type="date" 
+                value={fechaInicio} 
+                onChange={e => setFechaInicio(e.target.value)} 
+                className="bg-[#0B0F19] h-12 px-4 border border-gray-700 rounded-xl text-xs font-bold [color-scheme:dark] cursor-pointer hover:border-gray-500 transition-colors" 
+              />
+              <input 
+                type="date" 
+                value={fechaFin} 
+                onChange={e => setFechaFin(e.target.value)} 
+                className="bg-[#0B0F19] h-12 px-4 border border-gray-700 rounded-xl text-xs font-bold [color-scheme:dark] cursor-pointer hover:border-gray-500 transition-colors" 
+              />
             </div>
+            
             <ExcelFilter label="Empresa" options={listas.empresas} selected={empsSel} onToggle={v => setEmpsSel(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v])} onClear={() => setEmpsSel([])} />
             <ExcelFilter label="Ejecutivo" options={listas.ejecutivos} selected={ejesSel} onToggle={v => setEjesSel(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v])} onClear={() => setEjesSel([])} />
             <ExcelFilter label="Contacto" options={listas.contactos} selected={contSel} onToggle={v => setContSel(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v])} onClear={() => setContSel([])} />
-            <button onClick={resetFiltros} className="bg-blue-900/20 text-blue-400 px-6 py-4 rounded-2xl text-[10px] font-black border border-blue-500/30">🔄 Resetear Filtros</button>
-            <button onClick={() => setView('menu')} className="bg-gray-800 px-8 py-3 rounded-xl text-[10px] font-black border border-gray-700 ml-auto">VOLVER AL MENÚ</button>
+            
+            <button 
+              onClick={resetFiltros} 
+              className="bg-blue-900/20 text-blue-400 h-12 px-6 rounded-2xl text-[10px] font-black border border-blue-500/30 cursor-pointer hover:bg-blue-500 hover:text-white transition-all flex items-center justify-center"
+            >
+              🔄 RESETEAR
+            </button>
           </div>
+
           {view === 'resumen' && <Resumen graficos={graficos} />}
           {view === 'calidad' && <Calidad data={datosCalidad} evolucion={datosEvolucion} />}
           {view === 'riesgo' && <Riesgo data={datosRiesgo} evolucion={datosEvolucion} />}
