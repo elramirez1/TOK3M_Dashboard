@@ -24,9 +24,7 @@ const Heatmap = ({ data }) => {
     const startDate = new Date(selectedYear, 0, 1);
     const endDate = new Date(selectedYear, 11, 31);
     
-    // Calcular qué día de la semana es el 1 de enero (0=Dom, 1=Lun... 6=Sab)
     // Para que coincida con tu orden solicitado (Sab, Dom, Lun, Mar, Mie, Jue, Vie)
-    const customOrder = [6, 0, 1, 2, 3, 4, 5]; 
     const labels = ['Sab', 'Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie'];
 
     let current = new Date(startDate);
@@ -70,22 +68,18 @@ const Heatmap = ({ data }) => {
 
       <div className="flex gap-8">
         <div className="flex-1 flex flex-col">
-          {/* Meses alineados */}
           <div className="flex ml-12 mb-3 justify-between text-[10px] font-black text-gray-500 uppercase tracking-widest">
             {months.map(m => <span key={m} className="flex-1 text-center">{m}</span>)}
           </div>
 
           <div className="flex items-start gap-4">
-            {/* Eje Y: Fijo pero sincronizado con la grilla mediante CSS grid-rows-7 */}
             <div className="grid grid-rows-7 h-[140px] text-[9px] font-black text-gray-700 uppercase italic py-1">
               {dayLabels.map(label => (
                 <span key={label} className="flex items-center">{label}</span>
               ))}
             </div>
 
-            {/* Grilla: grid-flow-col asegura que se llene por columnas (semanas) */}
             <div className="grid grid-flow-col grid-rows-7 gap-1.5 flex-1 h-[140px]">
-              {/* Espacios vacíos para alinear el primer día del año con su día de la semana correcto */}
               {Array.from({ length: (new Date(selectedYear, 0, 1).getDay() + 1) % 7 }).map((_, i) => (
                 <div key={`empty-${i}`} className="w-full h-full bg-transparent" />
               ))}
@@ -106,7 +100,6 @@ const Heatmap = ({ data }) => {
           </div>
         </div>
 
-        {/* Selector de Años */}
         <div className="flex flex-col gap-2 border-l border-gray-800 pl-6">
           {years.map(y => (
             <button
@@ -127,7 +120,7 @@ function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [view, setView] = useState('menu');
   const [cargando, setCargando] = useState(false);
-  const [palabraKPI, setPalabraKPI] = useState("Cargando..."); // Estado para la palabra del menú
+  const [palabraKPI, setPalabraKPI] = useState("Cargando..."); 
   const [stats, setStats] = useState({ total_llamadas: 0, promedio_calidad: '0.0%', porcentaje_riesgo: '0.00%', porcentaje_motivo: '0.00%', promedio_emocion: '0.0%', promedio_ppm: 0 });
   const [heatmapData, setHeatmapData] = useState({});
   const [graficos, setGraficos] = useState({ por_dia: [], por_empresa: [], por_contacto: [], por_ejecutivo: [] });
@@ -139,14 +132,20 @@ function App() {
   const [datosEmocion, setDatosEmocion] = useState([]);
   const [datosPpm, setDatosPpm] = useState({ stats: {} });
   const [datosEvolucionPpm, setDatosEvolucionPpm] = useState([]);
-  const [datosTextMining, setDatosTextMining] = useState([]); // <--- AGREGADO 2
+  const [datosTextMining, setDatosTextMining] = useState([]); 
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
   const [empsSel, setEmpsSel] = useState([]);
   const [ejesSel, setEjesSel] = useState([]);
   const [contSel, setContSel] = useState([]);
 
-  const resetFiltros = () => { setFechaInicio(''); setFechaFin(''); setEmpsSel([]); setEjesSel([]); setContSel([]); };
+  const resetFiltros = () => {
+    setFechaInicio('');
+    setFechaFin('');
+    setEmpsSel([]);
+    setEjesSel([]);
+    setContSel([]);
+  };
 
   const modulos = [
     { id: 'resumen', icon: '🌐', name: 'Resumen General', color: 'blue' },
@@ -155,19 +154,17 @@ function App() {
     { id: 'emocional', icon: '🧠', name: 'Análisis Emocional', color: 'purple' },
     { id: 'pago', icon: '💸', name: 'Motivos de No Pago', color: 'orange' },
     { id: 'ppm', icon: '⏱️', name: 'Análisis PPM', color: 'pink' },
-    { id: 'textmining', icon: '🔤', name: 'Text Mining', color: 'yellow' } // <--- AGREGADO 3
+    { id: 'textmining', icon: '🔤', name: 'Text Mining', color: 'yellow' }
   ];
 
   const fetchMenuData = async () => {
     if (!token) return;
     const config = { headers: { Authorization: `Bearer ${token}` } };
     
-    // 1. Cargar el Heatmap (Rápido)
     api.get('/heatmap', config)
       .then(res => setHeatmapData(res.data))
       .catch(e => console.error("Error Heatmap:", e));
 
-    // 2. Cargar la palabra KPI (Lento) de forma independiente
     api.get('/textmining/data', config)
       .then(res => {
         if (res.data && res.data.length > 0) {
@@ -193,7 +190,9 @@ function App() {
         api.get('/stats', { params, ...config }), 
         api.get('/resumen/graficos', { params, ...config })
       ]);
-      setStats(resS.data); setGraficos(resR.data);
+      setStats(resS.data); 
+      setGraficos(resR.data);
+      
       if (listas.empresas.length === 0) {
         setListas({
           empresas: [...new Set(resR.data.por_empresa?.map(x => x.EMPRESA))].sort(),
@@ -201,6 +200,7 @@ function App() {
           contactos: [...new Set(resR.data.por_contacto?.map(x => x.CODIGO_CONTACTO || x.codigo_contacto))].filter(Boolean).sort()
         });
       }
+
       if (view === 'calidad') {
         const [resC, resE] = await Promise.all([api.get('/calidad/cumplimiento', { params, ...config }), api.get('/calidad/evolucion', { params, ...config })]);
         setDatosCalidad(resC.data); setDatosEvolucion(resE.data);
@@ -216,17 +216,21 @@ function App() {
       } else if (view === 'ppm') {
         const resP = await api.get('/ppm/data', { params, ...config });
         setDatosPpm(resP.data); setDatosEvolucionPpm(resP.data.evolucion || []);
-      } else if (view === 'textmining') { // <--- AGREGADO 4
+      } else if (view === 'textmining') {
         const resTM = await api.get('/textmining/data', { params, ...config });
         setDatosTextMining(resTM.data);
       }
-    } catch (err) { console.error(err); }
-      finally {
-          setCargando(false);
-      }
+    } catch (err) { 
+      console.error(err); 
+    } finally {
+      setCargando(false);
+    }
   }, [token, view, fechaInicio, fechaFin, empsSel, ejesSel, contSel, listas.empresas.length]);
 
-  useEffect(() => { fetchData(); if(view === 'menu') fetchMenuData(); }, [fetchData, view]);
+  useEffect(() => { 
+    fetchData(); 
+    if(view === 'menu') fetchMenuData(); 
+  }, [fetchData, view]);
 
   if (!token) return <Login onLogin={() => setToken(localStorage.getItem('token'))} />;
 
@@ -259,6 +263,19 @@ function App() {
           <Heatmap data={heatmapData} />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {modulos.map(m => {
+              // ESTRUCTURA SKELETON PARA TEXT MINING
+              if (m.id === 'textmining' && palabraKPI === "Cargando...") {
+                return (
+                  <div key={m.id} className="p-10 bg-[#111827] border border-gray-800 rounded-[2.5rem] shadow-xl animate-pulse">
+                    <div className="flex justify-between items-start mb-8">
+                      <div className="text-6xl grayscale opacity-20">{m.icon}</div>
+                      <div className="h-10 w-32 bg-gray-800 rounded-2xl border border-gray-700"></div>
+                    </div>
+                    <div className="h-8 w-48 bg-gray-800/50 rounded-lg"></div>
+                  </div>
+                );
+              }
+
               let val = "";
               if(m.id === 'resumen') val = Number(stats.total_llamadas).toLocaleString();
               if(m.id === 'calidad') val = stats.promedio_calidad;
@@ -266,7 +283,8 @@ function App() {
               if(m.id === 'emocional') val = stats.promedio_emocion;
               if(m.id === 'pago') val = stats.porcentaje_motivo;
               if(m.id === 'ppm') val = Number(stats.promedio_ppm || 0).toFixed(1);
-              if(m.id === 'textmining') val = palabraKPI.toUpperCase(); // <--- DINÁMICO
+              if(m.id === 'textmining') val = palabraKPI.toUpperCase();
+
               return (
                 <div key={m.id} onClick={() => setView(m.id)} className={`p-10 bg-[#111827] border border-gray-800 rounded-[2.5rem] hover:border-${m.color}-500 cursor-pointer group transition-all shadow-xl`}>
                   <div className="flex justify-between items-start mb-8">
