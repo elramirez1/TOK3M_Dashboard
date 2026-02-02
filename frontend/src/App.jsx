@@ -7,6 +7,7 @@ import Riesgo from './pages/Riesgo';
 import Motivos from './pages/Motivos';
 import Emocional from './pages/Emocional';
 import Ppm from './pages/Ppm';
+import TextMining from './pages/TextMining'; // <--- AGREGADO 1
 import Login from './components/Login';
 import logo from './assets/logo.jpg';
 
@@ -122,7 +123,6 @@ const Heatmap = ({ data }) => {
   );
 };
 
-// ... Resto del componente App igual ...
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [view, setView] = useState('menu');
@@ -137,6 +137,7 @@ function App() {
   const [datosEmocion, setDatosEmocion] = useState([]);
   const [datosPpm, setDatosPpm] = useState({ stats: {} });
   const [datosEvolucionPpm, setDatosEvolucionPpm] = useState([]);
+  const [datosTextMining, setDatosTextMining] = useState([]); // <--- AGREGADO 2
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
   const [empsSel, setEmpsSel] = useState([]);
@@ -151,7 +152,8 @@ function App() {
     { id: 'riesgo', icon: '⚠️', name: 'Monitor de Riesgo', color: 'red' },
     { id: 'emocional', icon: '🧠', name: 'Análisis Emocional', color: 'purple' },
     { id: 'pago', icon: '💸', name: 'Motivos de No Pago', color: 'orange' },
-    { id: 'ppm', icon: '⏱️', name: 'Análisis PPM', color: 'pink' }
+    { id: 'ppm', icon: '⏱️', name: 'Análisis PPM', color: 'pink' },
+    { id: 'textmining', icon: '🔤', name: 'Text Mining', color: 'yellow' } // <--- AGREGADO 3
   ];
 
   const fetchHeatmap = async () => {
@@ -195,6 +197,9 @@ function App() {
       } else if (view === 'ppm') {
         const resP = await api.get('/ppm/data', { params, ...config });
         setDatosPpm(resP.data); setDatosEvolucionPpm(resP.data.evolucion || []);
+      } else if (view === 'textmining') { // <--- AGREGADO 4
+        const resTM = await api.get('/textmining/data', { params, ...config });
+        setDatosTextMining(resTM.data);
       }
     } catch (err) { console.error(err); }
   }, [token, view, fechaInicio, fechaFin, empsSel, ejesSel, contSel, listas.empresas.length]);
@@ -239,8 +244,9 @@ function App() {
               if(m.id === 'emocional') val = stats.promedio_emocion;
               if(m.id === 'pago') val = stats.porcentaje_motivo;
               if(m.id === 'ppm') val = Number(stats.promedio_ppm || 0).toFixed(1);
+              if(m.id === 'textmining') val = "NGRAM"; // <--- AGREGADO 5
               return (
-                <div key={m.id} onClick={() => setView(m.id)} className="p-10 bg-[#111827] border border-gray-800 rounded-[2.5rem] hover:border-blue-500 cursor-pointer group transition-all shadow-xl">
+                <div key={m.id} onClick={() => setView(m.id)} className={`p-10 bg-[#111827] border border-gray-800 rounded-[2.5rem] hover:border-${m.color}-500 cursor-pointer group transition-all shadow-xl`}>
                   <div className="flex justify-between items-start mb-8">
                     <div className="text-6xl group-hover:scale-110 transition-transform">{m.icon}</div>
                     <div className={`text-4xl font-black text-${m.color}-500`}>{val}</div>
@@ -269,6 +275,7 @@ function App() {
           {view === 'pago' && <Motivos data={datosMotivos} evolucion={datosEvolucion} />}
           {view === 'emocional' && <Emocional data={datosEmocion} evolucion={datosEvolucion} />}
           {view === 'ppm' && <Ppm data={datosPpm} evolucion={datosEvolucionPpm} />}
+          {view === 'textmining' && <TextMining data={datosTextMining} />} {/* <--- AGREGADO 6 */}
         </div>
       )}
     </div>

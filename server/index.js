@@ -20,6 +20,7 @@ const riesgoRoutes = require('./routes/riesgo');
 const motivosRoutes = require('./routes/motivos');
 const emocionRoutes = require('./routes/emocion');
 const ppmRoutes = require('./routes/ppm');
+const textminingRoutes = require('./routes/textmining'); // <-- AGREGADO
 
 app.use('/api/resumen', resumenRoutes);
 app.use('/api/calidad', calidadRoutes);
@@ -27,10 +28,10 @@ app.use('/api/riesgo', riesgoRoutes);
 app.use('/api/motivos', motivosRoutes);
 app.use('/api/emocion', emocionRoutes);
 app.use('/api/ppm', ppmRoutes);
+app.use('/api/textmining', textminingRoutes); // <-- AGREGADO
 
 app.get('/api/heatmap', async (req, res) => {
     try {
-        // ELIMINADO EL INTERVAL '1 year' para traer toda la historia
         const query = `
             SELECT 
                 TO_CHAR(TO_DATE(NULLIF(ymd, 0)::text, 'YYYYMMDD'), 'YYYY-MM-DD') as fecha,
