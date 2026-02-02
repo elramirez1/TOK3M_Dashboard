@@ -126,6 +126,8 @@ const Heatmap = ({ data }) => {
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [view, setView] = useState('menu');
+  const [cargando, setCargando] = useState(false);
+  const [palabraKPI, setPalabraKPI] = useState("Cargando..."); // Estado para la palabra del menú
   const [stats, setStats] = useState({ total_llamadas: 0, promedio_calidad: '0.0%', porcentaje_riesgo: '0.00%', porcentaje_motivo: '0.00%', promedio_emocion: '0.0%', promedio_ppm: 0 });
   const [heatmapData, setHeatmapData] = useState({});
   const [graficos, setGraficos] = useState({ por_dia: [], por_empresa: [], por_contacto: [], por_ejecutivo: [] });
@@ -156,16 +158,33 @@ function App() {
     { id: 'textmining', icon: '🔤', name: 'Text Mining', color: 'yellow' } // <--- AGREGADO 3
   ];
 
-  const fetchHeatmap = async () => {
+  const fetchMenuData = async () => {
     if (!token) return;
-    try {
-      const res = await api.get('/heatmap', { headers: { Authorization: `Bearer ${token}` } });
-      setHeatmapData(res.data);
-    } catch (e) { console.error("Error Heatmap:", e); }
+    const config = { headers: { Authorization: `Bearer ${token}` } };
+    
+    // 1. Cargar el Heatmap (Rápido)
+    api.get('/heatmap', config)
+      .then(res => setHeatmapData(res.data))
+      .catch(e => console.error("Error Heatmap:", e));
+
+    // 2. Cargar la palabra KPI (Lento) de forma independiente
+    api.get('/textmining/data', config)
+      .then(res => {
+        if (res.data && res.data.length > 0) {
+          setPalabraKPI(res.data[0].word || res.data[0].palabra);
+        } else {
+          setPalabraKPI("N/A");
+        }
+      })
+      .catch(e => {
+        console.error("Error Word KPI:", e);
+        setPalabraKPI("Error");
+      });
   };
 
   const fetchData = useCallback(async () => {
     if (!token) return;
+    setCargando(true);
     const config = { headers: { Authorization: `Bearer ${token}` } };
     const params = { inicio: fechaInicio, fin: fechaFin, empresas: empsSel.join(','), ejecutivos: ejesSel.join(','), contactos: contSel.join(',') };
 
@@ -202,9 +221,12 @@ function App() {
         setDatosTextMining(resTM.data);
       }
     } catch (err) { console.error(err); }
+      finally {
+          setCargando(false);
+      }
   }, [token, view, fechaInicio, fechaFin, empsSel, ejesSel, contSel, listas.empresas.length]);
 
-  useEffect(() => { fetchData(); if(view === 'menu') fetchHeatmap(); }, [fetchData, view]);
+  useEffect(() => { fetchData(); if(view === 'menu') fetchMenuData(); }, [fetchData, view]);
 
   if (!token) return <Login onLogin={() => setToken(localStorage.getItem('token'))} />;
 
@@ -244,12 +266,12 @@ function App() {
               if(m.id === 'emocional') val = stats.promedio_emocion;
               if(m.id === 'pago') val = stats.porcentaje_motivo;
               if(m.id === 'ppm') val = Number(stats.promedio_ppm || 0).toFixed(1);
-              if(m.id === 'textmining') val = "NGRAM"; // <--- AGREGADO 5
+              if(m.id === 'textmining') val = palabraKPI.toUpperCase(); // <--- DINÁMICO
               return (
                 <div key={m.id} onClick={() => setView(m.id)} className={`p-10 bg-[#111827] border border-gray-800 rounded-[2.5rem] hover:border-${m.color}-500 cursor-pointer group transition-all shadow-xl`}>
                   <div className="flex justify-between items-start mb-8">
                     <div className="text-6xl group-hover:scale-110 transition-transform">{m.icon}</div>
-                    <div className={`text-4xl font-black text-${m.color}-500`}>{val}</div>
+                    <div className={`text-4xl font-black text-${m.color}-500 break-words`}>{val}</div>
                   </div>
                   <h2 className="text-2xl font-black uppercase text-gray-400 group-hover:text-white italic tracking-tighter">{m.name}</h2>
                 </div>
@@ -275,7 +297,7 @@ function App() {
           {view === 'pago' && <Motivos data={datosMotivos} evolucion={datosEvolucion} />}
           {view === 'emocional' && <Emocional data={datosEmocion} evolucion={datosEvolucion} />}
           {view === 'ppm' && <Ppm data={datosPpm} evolucion={datosEvolucionPpm} />}
-          {view === 'textmining' && <TextMining data={datosTextMining} />} {/* <--- AGREGADO 6 */}
+          {view === 'textmining' && <TextMining data={datosTextMining} isFetching={cargando} />}
         </div>
       )}
     </div>
