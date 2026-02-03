@@ -7,7 +7,8 @@ import Riesgo from './pages/Riesgo';
 import Motivos from './pages/Motivos';
 import Emocional from './pages/Emocional';
 import Ppm from './pages/Ppm';
-import TextMining from './pages/TextMining'; // <--- AGREGADO 1
+import TextMining from './pages/TextMining'; 
+import Cubo from './pages/Cubo'; 
 import Login from './components/Login';
 import logo from './assets/logo.jpg';
 
@@ -18,13 +19,10 @@ const Heatmap = ({ data }) => {
   const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
   const years = [2026, 2025, 2024];
 
-  // Generar días y calcular el offset del primer día de la semana
   const { days, dayLabels } = useMemo(() => {
     const arr = [];
     const startDate = new Date(selectedYear, 0, 1);
     const endDate = new Date(selectedYear, 11, 31);
-    
-    // Para que coincida con tu orden solicitado (Sab, Dom, Lun, Mar, Mie, Jue, Vie)
     const labels = ['Sab', 'Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie'];
 
     let current = new Date(startDate);
@@ -32,7 +30,6 @@ const Heatmap = ({ data }) => {
       arr.push(current.toISOString().split('T')[0]);
       current.setDate(current.getDate() + 1);
     }
-
     return { days: arr, dayLabels: labels };
   }, [selectedYear]);
 
@@ -133,6 +130,7 @@ function App() {
   const [datosPpm, setDatosPpm] = useState({ stats: {} });
   const [datosEvolucionPpm, setDatosEvolucionPpm] = useState([]);
   const [datosTextMining, setDatosTextMining] = useState([]); 
+  const [datosCubo, setDatosCubo] = useState([]); 
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
   const [empsSel, setEmpsSel] = useState([]);
@@ -154,7 +152,8 @@ function App() {
     { id: 'emocional', icon: '🧠', name: 'Análisis Emocional', color: 'purple' },
     { id: 'pago', icon: '💸', name: 'Motivos de No Pago', color: 'orange' },
     { id: 'ppm', icon: '⏱️', name: 'Análisis PPM', color: 'pink' },
-    { id: 'textmining', icon: '🔤', name: 'Text Mining', color: 'yellow' }
+    { id: 'textmining', icon: '🔤', name: 'Text Mining', color: 'yellow' },
+    { id: 'cubo', icon: '🧊', name: 'Cubo Flexible', color: 'indigo' }
   ];
 
   const fetchMenuData = async () => {
@@ -219,6 +218,9 @@ function App() {
       } else if (view === 'textmining') {
         const resTM = await api.get('/textmining/data', { params, ...config });
         setDatosTextMining(resTM.data);
+      } else if (view === 'cubo') {
+        const resCB = await api.get('/cubo/data', { params, ...config }); // <-- Asegúrate que diga /cubo/data
+        setDatosCubo(resCB.data);
       }
     } catch (err) { 
       console.error(err); 
@@ -263,7 +265,7 @@ function App() {
           <Heatmap data={heatmapData} />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {modulos.map(m => {
-              // ESTRUCTURA SKELETON PARA TEXT MINING
+              // LÓGICA DE CARGA ESPECÍFICA PARA TEXT MINING (MANTIENE SKELETON)
               if (m.id === 'textmining' && palabraKPI === "Cargando...") {
                 return (
                   <div key={m.id} className="p-10 bg-[#111827] border border-gray-800 rounded-[2.5rem] shadow-xl animate-pulse">
@@ -284,6 +286,7 @@ function App() {
               if(m.id === 'pago') val = stats.porcentaje_motivo;
               if(m.id === 'ppm') val = Number(stats.promedio_ppm || 0).toFixed(1);
               if(m.id === 'textmining') val = palabraKPI.toUpperCase();
+              if(m.id === 'cubo') val = "DATA"; // Valor descriptivo para el Cubo
 
               return (
                 <div key={m.id} onClick={() => setView(m.id)} className={`p-10 bg-[#111827] border border-gray-800 rounded-[2.5rem] hover:border-${m.color}-500 cursor-pointer group transition-all shadow-xl`}>
@@ -309,6 +312,7 @@ function App() {
             <ExcelFilter label="Contacto" options={listas.contactos} selected={contSel} onToggle={v => setContSel(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v])} onClear={() => setContSel([])} />
             <button onClick={resetFiltros} className="bg-blue-900/20 text-blue-400 h-12 px-6 rounded-2xl text-[10px] font-black border border-blue-500/30">🔄 RESETEAR</button>
           </div>
+          
           {view === 'resumen' && <Resumen graficos={graficos} />}
           {view === 'calidad' && <Calidad data={datosCalidad} evolucion={datosEvolucion} />}
           {view === 'riesgo' && <Riesgo data={datosRiesgo} evolucion={datosEvolucion} />}
@@ -316,9 +320,11 @@ function App() {
           {view === 'emocional' && <Emocional data={datosEmocion} evolucion={datosEvolucion} />}
           {view === 'ppm' && <Ppm data={datosPpm} evolucion={datosEvolucionPpm} />}
           {view === 'textmining' && <TextMining data={datosTextMining} isFetching={cargando} />}
+          {view === 'cubo' && <Cubo data={datosCubo} />}
         </div>
       )}
     </div>
   );
 }
+
 export default App;
