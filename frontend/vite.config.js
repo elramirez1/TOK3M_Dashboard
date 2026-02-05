@@ -8,15 +8,15 @@ export default defineConfig({
     tailwindcss(),
   ],
   server: {
-    // Vital para que Railway detecte el servicio
     host: true,
     port: process.env.PORT ? parseInt(process.env.PORT) : 5173,
     strictPort: true,
+    allowedHosts: ['tok3mdashboard-production.up.railway.app'] // Autorizamos tu URL
   },
   preview: {
-    // Vital para cuando Railway corre la versión de producción
     host: true,
     port: process.env.PORT ? parseInt(process.env.PORT) : 5173,
     strictPort: true,
+    allowedHosts: ['tok3mdashboard-production.up.railway.app'] // También aquí
   }
 })
