@@ -12,7 +12,7 @@ import Cubo from './pages/Cubo';
 import Login from './components/Login';
 import logo from './assets/logo.jpg';
 
-const api = axios.create({ baseURL: 'http://127.0.0.1:8000/api' });
+const api = axios.create({ baseURL: 'https://tok3mdashboard-production.up.railway.app/api' });
 
 const Heatmap = ({ data }) => {
   const [selectedYear, setSelectedYear] = useState(2025);
