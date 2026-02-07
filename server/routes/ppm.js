@@ -6,6 +6,7 @@ router.get('/data', async (req, res) => {
     const { inicio, fin, empresas, ejecutivos, contactos } = req.query;
     let filters = [];
 
+    // Filtro de fecha optimizado para ymd bigint
     if (inicio && fin && inicio !== '' && fin !== '') {
         const i = parseInt(inicio.replace(/-/g, ''));
         const f = parseInt(fin.replace(/-/g, ''));
@@ -19,10 +20,11 @@ router.get('/data', async (req, res) => {
     const where = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
 
     try {
+        // Todas las consultas apuntan ahora a resumen_maestro
         const [resEvolucion, resEjecutivos, resEmpresas, resSegmentos] = await Promise.all([
-            pool.query(`SELECT ymd::text as "FECHA", AVG("PPM_PROMEDIO") as "PPM" FROM resumen_ppm ${where} GROUP BY ymd ORDER BY ymd`),
-            pool.query(`SELECT nombre_ejecutivo as "NOMBRE_EJECUTIVO", AVG("PPM_PROMEDIO") as "PPM" FROM resumen_ppm ${where} GROUP BY nombre_ejecutivo ORDER BY "PPM" DESC`),
-            pool.query(`SELECT empresa as "EMPRESA", AVG("PPM_PROMEDIO") as "PPM" FROM resumen_ppm ${where} GROUP BY empresa ORDER BY "PPM" DESC`),
+            pool.query(`SELECT ymd::text as "FECHA", AVG("PPM_PROMEDIO") as "PPM" FROM resumen_maestro ${where} GROUP BY ymd ORDER BY ymd`),
+            pool.query(`SELECT nombre_ejecutivo as "NOMBRE_EJECUTIVO", AVG("PPM_PROMEDIO") as "PPM" FROM resumen_maestro ${where} GROUP BY nombre_ejecutivo ORDER BY "PPM" DESC`),
+            pool.query(`SELECT empresa as "EMPRESA", AVG("PPM_PROMEDIO") as "PPM" FROM resumen_maestro ${where} GROUP BY empresa ORDER BY "PPM" DESC`),
             pool.query(`
                 SELECT 
                     CASE 
@@ -31,8 +33,8 @@ router.get('/data', async (req, res) => {
                         WHEN "PPM_PROMEDIO" BETWEEN 161 AND 200 THEN 'Rápido'
                         ELSE 'Muy rápido'
                     END as "segmento",
-                    COUNT(*) as "cantidad"
-                FROM resumen_ppm 
+                    COUNT(*)::int as "cantidad"
+                FROM resumen_maestro 
                 ${where}
                 GROUP BY 1
             `)
@@ -49,6 +51,7 @@ router.get('/data', async (req, res) => {
             segmentos: resSegmentos.rows
         });
     } catch (e) { 
+        console.error("Error en router PPM:", e);
         res.status(500).json({ error: e.message }); 
     }
 });

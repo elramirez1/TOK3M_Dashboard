@@ -3,6 +3,9 @@ const { Pool } = require('pg');
 const cors = require('cors');
 
 const app = express();
+
+// --- CONFIGURACIÓN DE CONEXIÓN ---
+// Recuerda actualizar estas credenciales cuando subas a Railway
 const pool = new Pool({ 
     user: 'danielramirezquintana', 
     host: 'localhost', 
@@ -24,15 +27,15 @@ app.post('/api/auth/login', (req, res) => {
     return res.status(401).json({ message: 'Credenciales inválidas' });
 });
 
-// --- IMPORTACIÓN DE RUTAS ---
+// --- IMPORTACIÓN DE RUTAS (Ahora todas apuntarán internamente a resumen_maestro) ---
 const resumenRoutes = require('./routes/resumen');
 const calidadRoutes = require('./routes/calidad');
 const riesgoRoutes = require('./routes/riesgo');
 const motivosRoutes = require('./routes/motivos');
 const emocionRoutes = require('./routes/emocion');
 const ppmRoutes = require('./routes/ppm');
-const textminingRoutes = require('./routes/textmining');
-const cuboRoutes = require('./routes/cubo'); // <--- AGREGADO: NUEVO ROUTER
+const textminingRoutes = require('./routes/textmining'); // Este sigue usando su propia tabla
+const cuboRoutes = require('./routes/cubo');
 
 // --- DEFINICIÓN DE ENDPOINTS ---
 app.use('/api/resumen', resumenRoutes);
@@ -42,16 +45,16 @@ app.use('/api/motivos', motivosRoutes);
 app.use('/api/emocion', emocionRoutes);
 app.use('/api/ppm', ppmRoutes);
 app.use('/api/textmining', textminingRoutes);
-app.use('/api/cubo', cuboRoutes); // <--- AGREGADO: RUTA DEL CUBO
+app.use('/api/cubo', cuboRoutes);
 
-// --- ENDPOINT: HEATMAP ---
+// --- ENDPOINT: HEATMAP (Optimizado con resumen_maestro) ---
 app.get('/api/heatmap', async (req, res) => {
     try {
         const query = `
             SELECT 
                 TO_CHAR(TO_DATE(NULLIF(ymd, 0)::text, 'YYYYMMDD'), 'YYYY-MM-DD') as fecha,
                 SUM(total_gestiones)::int as total
-            FROM resumen_general
+            FROM resumen_maestro
             WHERE ymd IS NOT NULL AND ymd > 0
             GROUP BY ymd
             ORDER BY ymd ASC
@@ -63,11 +66,13 @@ app.get('/api/heatmap', async (req, res) => {
         });
         res.json(heatmapData);
     } catch (e) { 
+        console.error("Error en Heatmap:", e);
         res.status(500).json({ error: e.message }); 
     }
 });
 
 // --- ENDPOINT: STATS (KPIS DEL MENÚ) ---
+// OPTIMIZADO: 1 sola consulta a 1 sola tabla en lugar de 6 consultas a 6 tablas.
 app.get('/api/stats', async (req, res) => {
     try {
         const { inicio, fin } = req.query;
@@ -75,35 +80,34 @@ app.get('/api/stats', async (req, res) => {
         if (inicio && fin) {
             const i = inicio.replace(/-/g, '');
             const f = fin.replace(/-/g, '');
-            w = `WHERE ymd BETWEEN '${i}' AND '${f}'`;
+            w = `WHERE ymd BETWEEN ${i} AND ${f}`;
         }
 
-        const qGen = `SELECT SUM(total_gestiones)::bigint as t FROM resumen_general ${w}`;
-        const qCal = `SELECT AVG("FINAL") as c FROM resumen_calidad ${w}`;
-        const qRisk = `SELECT (SUM(tiene_riesgo)::float / NULLIF(SUM(total_gestiones), 0)) * 100 as r FROM resumen_riesgo ${w}`;
-        const qMot = `SELECT AVG(tiene_motivo) as m FROM resumen_motivo ${w}`;
-        const qEmo = `SELECT AVG("TOTAL_EMOCION") as e FROM resumen_emocion ${w}`;
-        const qPpm = `SELECT AVG("PPM_PROMEDIO") as p FROM resumen_ppm ${w}`;
+        const queryMaestra = `
+            SELECT 
+                SUM(total_gestiones)::bigint as t,
+                AVG("FINAL") as c,
+                (SUM(tiene_riesgo)::float / NULLIF(SUM(total_gestiones), 0)) * 100 as r,
+                AVG(tiene_motivo) as m,
+                AVG("TOTAL_EMOCION") as e,
+                AVG("PPM_PROMEDIO") as p
+            FROM resumen_maestro 
+            ${w}
+        `;
 
-        const [resGen, resCal, resRisk, resMot, resEmo, resPpm] = await Promise.all([
-            pool.query(qGen), 
-            pool.query(qCal), 
-            pool.query(qRisk), 
-            pool.query(qMot), 
-            pool.query(qEmo), 
-            pool.query(qPpm)
-        ]);
+        const result = await pool.query(queryMaestra);
+        const data = result.rows[0];
 
         res.json({ 
-            total_llamadas: Number(resGen.rows[0].t || 0), 
-            promedio_calidad: `${Number(resCal.rows[0].c || 0).toFixed(1)}%`,
-            porcentaje_riesgo: `${Number(resRisk.rows[0].r || 0).toFixed(2)}%`,
-            porcentaje_motivo: `${Number(resMot.rows[0].m || 0).toFixed(1)}%`,
-            promedio_emocion: `${Number(resEmo.rows[0].e || 0).toFixed(1)}%`,
-            promedio_ppm: Number(resPpm.rows[0].p || 0).toFixed(0)
+            total_llamadas: Number(data.t || 0), 
+            promedio_calidad: `${Number(data.c || 0).toFixed(1)}%`,
+            porcentaje_riesgo: `${Number(data.r || 0).toFixed(2)}%`,
+            porcentaje_motivo: `${Number(data.m || 0).toFixed(1)}%`,
+            promedio_emocion: `${Number(data.e || 0).toFixed(1)}%`,
+            promedio_ppm: Number(data.p || 0).toFixed(0)
         });
     } catch (e) { 
-        console.error("Error en Stats:", e);
+        console.error("Error en Stats Maestro:", e);
         res.status(500).send(e.message); 
     }
 });
@@ -112,10 +116,11 @@ app.get('/api/stats', async (req, res) => {
 const PORT = 8000;
 app.listen(PORT, () => {
     console.log(`
-    🚀 SERVIDOR HISTÓRICO ACTIVO
-    ----------------------------
+    🚀 SERVIDOR MAESTRO ACTIVO
+    -------------------------------------------
     Puerto: ${PORT}
-    Módulos: Resumen, Calidad, Riesgo, Motivos, Emoción, PPM, TextMining, Cubo
-    ----------------------------
+    Estado: Migración a Tabla Única completada
+    Tablas origen: resumen_maestro, resumen_textmining
+    -------------------------------------------
     `);
 });
