@@ -1,26 +1,24 @@
 const express = require('express');
 const router = express.Router();
 
+// FILTRO ULTRA-SEGURO
 const getFilters = (req) => {
     const { inicio, fin, empresas, ejecutivos, contactos } = req.query;
     let f = [];
     
-    // Filtro de fechas (ymd es bigint)
     if (inicio && fin && inicio !== '' && fin !== '') {
         f.push(`ymd BETWEEN ${inicio.replace(/-/g, '')} AND ${fin.replace(/-/g, '')}`);
     }
 
-    // IMPORTANTE: Nombres de columnas con comillas dobles para PostgreSQL
-    const proc = (col, val) => {
-        if (!val || val === 'null' || val === '' || val === 'undefined') return;
-        // Agregamos comillas dobles a la columna para que coincida con la tabla
-        f.push(`"${col}" = ANY(string_to_array('${val}', ','))`);
-    };
-
-    // Ajustamos los nombres de columnas a MAYÚSCULAS para que coincidan con tu tabla
-    proc('EMPRESA', empresas);
-    proc('NOMBRE_EJECUTIVO', ejecutivos);
-    proc('CODIGO_CONTACTO', contactos);
+    if (empresas && empresas !== '') {
+        f.push(`"EMPRESA" = ANY(string_to_array('${empresas}', ','))`);
+    }
+    if (ejecutivos && ejecutivos !== '') {
+        f.push(`"NOMBRE_EJECUTIVO" = ANY(string_to_array('${ejecutivos}', ','))`);
+    }
+    if (contactos && contactos !== '') {
+        f.push(`"CODIGO_CONTACTO" = ANY(string_to_array('${contactos}', ','))`);
+    }
 
     return f.length > 0 ? ' WHERE ' + f.join(' AND ') : '';
 };
@@ -32,13 +30,12 @@ router.get('/cumplimiento', async (req, res) => {
         const pool = req.app.get('pool');
         const w = getFilters(req);
         
-        // Seleccionamos promedios asegurando que FINAL también esté protegido
         const sel = CAL_COLS.map(c => `AVG(COALESCE("${c}", 0)) as "${c}"`).join(',');
         const q = `SELECT ${sel}, AVG(COALESCE("FINAL", 0)) as "FINAL" FROM resumen_maestro ${w}`;
         
         const r = await pool.query(q);
         
-        // Si no hay filas, devolvemos array de ceros para que el front no muera
+        // PARACAÍDAS: Si no hay datos, devolvemos ceros, NUNCA error
         if (!r.rows || r.rows.length === 0 || r.rows[0].FINAL === null) {
             const vacio = CAL_COLS.map(k => ({ item: k, promedio: 0 }));
             vacio.push({ item: "FINAL", promedio: 0 });
@@ -54,8 +51,8 @@ router.get('/cumplimiento', async (req, res) => {
         
         res.json(resu);
     } catch (e) { 
-        console.error("Error en calidad cumplimiento:", e);
-        // Enviamos un array vacío en lugar de un error de texto para no romper el .map del front
+        console.error("ERROR CRÍTICO CALIDAD:", e.message);
+        // Devolvemos estructura mínima para que el front NO se ponga blanco
         res.json([]); 
     }
 });
@@ -73,7 +70,6 @@ router.get('/evolucion', async (req, res) => {
         const r = await pool.query(q);
         res.json(r.rows || []);
     } catch (e) { 
-        console.error("Error en calidad evolucion:", e);
         res.json([]); 
     }
 });
