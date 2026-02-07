@@ -4,13 +4,14 @@ const cors = require('cors');
 
 const app = express();
 
-// --- CONFIGURACIÓN DE CONEXIÓN ---
-// Recuerda actualizar estas credenciales cuando subas a Railway
+// --- CONFIGURACIÓN DE CONEXIÓN HÍBRIDA ---
+// Si existe DATABASE_URL (en Railway), la usa. Si no, usa tu local.
+const connectionString = process.env.DATABASE_URL || 'postgresql://danielramirezquintana@localhost:5432/tokem_db';
+
 const pool = new Pool({ 
-    user: 'danielramirezquintana', 
-    host: 'localhost', 
-    database: 'tokem_db', 
-    port: 5432 
+    connectionString: connectionString,
+    // SSL es obligatorio en Railway pero opcional/falso en local
+    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
 // Configuración de Middlewares
@@ -27,14 +28,14 @@ app.post('/api/auth/login', (req, res) => {
     return res.status(401).json({ message: 'Credenciales inválidas' });
 });
 
-// --- IMPORTACIÓN DE RUTAS (Ahora todas apuntarán internamente a resumen_maestro) ---
+// --- IMPORTACIÓN DE RUTAS ---
 const resumenRoutes = require('./routes/resumen');
 const calidadRoutes = require('./routes/calidad');
 const riesgoRoutes = require('./routes/riesgo');
 const motivosRoutes = require('./routes/motivos');
 const emocionRoutes = require('./routes/emocion');
 const ppmRoutes = require('./routes/ppm');
-const textminingRoutes = require('./routes/textmining'); // Este sigue usando su propia tabla
+const textminingRoutes = require('./routes/textmining'); 
 const cuboRoutes = require('./routes/cubo');
 
 // --- DEFINICIÓN DE ENDPOINTS ---
@@ -47,7 +48,7 @@ app.use('/api/ppm', ppmRoutes);
 app.use('/api/textmining', textminingRoutes);
 app.use('/api/cubo', cuboRoutes);
 
-// --- ENDPOINT: HEATMAP (Optimizado con resumen_maestro) ---
+// --- ENDPOINT: HEATMAP ---
 app.get('/api/heatmap', async (req, res) => {
     try {
         const query = `
@@ -71,8 +72,7 @@ app.get('/api/heatmap', async (req, res) => {
     }
 });
 
-// --- ENDPOINT: STATS (KPIS DEL MENÚ) ---
-// OPTIMIZADO: 1 sola consulta a 1 sola tabla en lugar de 6 consultas a 6 tablas.
+// --- ENDPOINT: STATS (KPIS MAESTRO) ---
 app.get('/api/stats', async (req, res) => {
     try {
         const { inicio, fin } = req.query;
@@ -113,14 +113,15 @@ app.get('/api/stats', async (req, res) => {
 });
 
 // --- INICIO DEL SERVIDOR ---
-const PORT = 8000;
+// El puerto debe ser dinámico para Railway
+const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
     console.log(`
     🚀 SERVIDOR MAESTRO ACTIVO
     -------------------------------------------
     Puerto: ${PORT}
-    Estado: Migración a Tabla Única completada
-    Tablas origen: resumen_maestro, resumen_textmining
+    Entorno: ${process.env.DATABASE_URL ? 'Nube (Railway)' : 'Local (Desarrollo)'}
+    Tablas: resumen_maestro, resumen_textmining
     -------------------------------------------
     `);
 });
