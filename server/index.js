@@ -5,23 +5,27 @@ const cors = require('cors');
 const app = express();
 
 // --- CONFIGURACIÓN DE CONEXIÓN HÍBRIDA ---
-// Si existe DATABASE_URL (en Railway), la usa. Si no, usa tu local.
 const connectionString = process.env.DATABASE_URL || 'postgresql://danielramirezquintana@localhost:5432/tokem_db';
 
 const pool = new Pool({ 
     connectionString: connectionString,
-    // SSL es obligatorio en Railway pero opcional/falso en local
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
-// Configuración de Middlewares
+// --- MIDDLEWARES ---
 app.set('pool', pool);
-app.use(cors());
+// CORS configurado para permitir peticiones desde tu frontend en Railway
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 // --- AUTENTICACIÓN ---
 app.post('/api/auth/login', (req, res) => {
     const { username, password } = req.body;
+    // Login robusto con admin123
     if (username === 'admin' && password === 'admin123') {
         return res.json({ token: 'fake-jwt-token', user: 'admin' });
     }
@@ -77,7 +81,9 @@ app.get('/api/stats', async (req, res) => {
     try {
         const { inicio, fin } = req.query;
         let w = '';
-        if (inicio && fin) {
+        
+        // Mejora: Evita que el query falle si no se envían fechas
+        if (inicio && fin && inicio !== '' && fin !== '') {
             const i = inicio.replace(/-/g, '');
             const f = fin.replace(/-/g, '');
             w = `WHERE ymd BETWEEN ${i} AND ${f}`;
@@ -108,12 +114,12 @@ app.get('/api/stats', async (req, res) => {
         });
     } catch (e) { 
         console.error("Error en Stats Maestro:", e);
-        res.status(500).send(e.message); 
+        // Enviamos JSON para que el frontend no explote
+        res.status(500).json({ error: e.message }); 
     }
 });
 
 // --- INICIO DEL SERVIDOR ---
-// El puerto debe ser dinámico para Railway
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
     console.log(`
