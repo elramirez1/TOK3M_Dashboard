@@ -278,19 +278,20 @@ function App() {
                 );
               }
 
-              let val = "";
-              if(m.id === 'resumen') val = Number(stats.total_llamadas).toLocaleString();
-              if(m.id === 'calidad') val = stats.promedio_calidad;
-              if(m.id === 'riesgo') val = stats.porcentaje_riesgo;
-              if(m.id === 'emocional') val = stats.promedio_emocion;
-              if(m.id === 'pago') val = stats.porcentaje_motivo;
-              if(m.id === 'ppm') val = Number(stats.promedio_ppm || 0).toFixed(1);
-              if(m.id === 'textmining') {
-                val = (palabraKPI && typeof palabraKPI === 'string') 
-                  ? palabraKPI.toUpperCase() 
-                  : "CARGANDO...";
-              }
-              if(m.id === 'cubo') val = "DATA"; // Valor descriptivo para el Cubo
+                let val = "";
+                // Usamos ?. para que si stats es undefined, no rompa la aplicación
+                if(m.id === 'resumen') val = Number(stats?.total_llamadas || 0).toLocaleString();
+                if(m.id === 'calidad') val = stats?.promedio_calidad || "0%";
+                if(m.id === 'riesgo') val = stats?.porcentaje_riesgo || "0%";
+                if(m.id === 'emocional') val = stats?.promedio_emocion || "0%";
+                if(m.id === 'pago') val = stats?.porcentaje_motivo || "0%";
+                if(m.id === 'ppm') val = Number(stats?.promedio_ppm || 0).toFixed(1);
+                if(m.id === 'textmining') {
+                  val = (palabraKPI && typeof palabraKPI === 'string') 
+                    ? palabraKPI.toUpperCase() 
+                    : "CARGANDO...";
+                }
+                if(m.id === 'cubo') val = "DATA";
 
               return (
                 <div key={m.id} onClick={() => setView(m.id)} className={`p-10 bg-[#111827] border border-gray-800 rounded-[2.5rem] hover:border-${m.color}-500 cursor-pointer group transition-all shadow-xl`}>
