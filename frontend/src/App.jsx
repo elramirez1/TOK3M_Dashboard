@@ -285,7 +285,11 @@ function App() {
               if(m.id === 'emocional') val = stats.promedio_emocion;
               if(m.id === 'pago') val = stats.porcentaje_motivo;
               if(m.id === 'ppm') val = Number(stats.promedio_ppm || 0).toFixed(1);
-              if(m.id === 'textmining') val = palabraKPI.toUpperCase();
+              if(m.id === 'textmining') {
+                val = (palabraKPI && typeof palabraKPI === 'string') 
+                  ? palabraKPI.toUpperCase() 
+                  : "CARGANDO...";
+              }
               if(m.id === 'cubo') val = "DATA"; // Valor descriptivo para el Cubo
 
               return (
