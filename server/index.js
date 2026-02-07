@@ -101,14 +101,14 @@ app.get('/api/stats', async (req, res) => {
         const result = await pool.query(queryMaestra);
         const data = result.rows[0];
 
-        // Mapeo explícito para que el Frontend reciba exactamente lo que espera
+        // Mapeo corregido para que el dashboard NO quede vacío
         res.json({ 
             total_llamadas: Number(data.total_llamadas || 0), 
             promedio_calidad: `${Number(data.promedio_calidad || 0).toFixed(1)}%`,
             porcentaje_riesgo: `${Number(data.porcentaje_riesgo || 0).toFixed(2)}%`,
             porcentaje_motivo: `${Number(data.porcentaje_motivo || 0).toFixed(1)}%`,
             promedio_emocion: `${Number(data.promedio_emocion || 0).toFixed(1)}%`,
-            promedio_ppm: Math.round(Number(data.promedio_ppm || 0))
+            promedio_ppm: Number(data.promedio_ppm || 0) // El dashboard espera número para el .toFixed(1) en App.jsx
         });
     } catch (e) { 
         console.error("Error en Stats Maestro:", e);
@@ -119,7 +119,5 @@ app.get('/api/stats', async (req, res) => {
 // --- INICIO DEL SERVIDOR ---
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
-    console.log(`
-    🚀 SERVIDOR MAESTRO ACTIVO EN PUERTO ${PORT}
-    `);
+    console.log(`🚀 SERVIDOR MAESTRO ACTIVO EN PUERTO ${PORT}`);
 });
