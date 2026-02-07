@@ -14,7 +14,6 @@ const pool = new Pool({
 
 // --- MIDDLEWARES ---
 app.set('pool', pool);
-// CORS configurado para permitir peticiones desde tu frontend en Railway
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
@@ -25,7 +24,6 @@ app.use(express.json());
 // --- AUTENTICACIÓN ---
 app.post('/api/auth/login', (req, res) => {
     const { username, password } = req.body;
-    // Login robusto con admin123
     if (username === 'admin' && password === 'admin123') {
         return res.json({ token: 'fake-jwt-token', user: 'admin' });
     }
@@ -82,7 +80,6 @@ app.get('/api/stats', async (req, res) => {
         const { inicio, fin } = req.query;
         let w = '';
         
-        // Mejora: Evita que el query falle si no se envían fechas
         if (inicio && fin && inicio !== '' && fin !== '') {
             const i = inicio.replace(/-/g, '');
             const f = fin.replace(/-/g, '');
@@ -91,12 +88,12 @@ app.get('/api/stats', async (req, res) => {
 
         const queryMaestra = `
             SELECT 
-                SUM(total_gestiones)::bigint as t,
-                AVG("FINAL") as c,
-                (SUM(tiene_riesgo)::float / NULLIF(SUM(total_gestiones), 0)) * 100 as r,
-                AVG(tiene_motivo) as m,
-                AVG("TOTAL_EMOCION") as e,
-                AVG("PPM_PROMEDIO") as p
+                COALESCE(SUM(total_gestiones), 0)::bigint as total_llamadas,
+                COALESCE(AVG("FINAL"), 0) as promedio_calidad,
+                COALESCE((SUM(tiene_riesgo)::float / NULLIF(SUM(total_gestiones), 0)) * 100, 0) as porcentaje_riesgo,
+                COALESCE(AVG(tiene_motivo), 0) as porcentaje_motivo,
+                COALESCE(AVG("TOTAL_EMOCION"), 0) as promedio_emocion,
+                COALESCE(AVG("PPM_PROMEDIO"), 0) as promedio_ppm
             FROM resumen_maestro 
             ${w}
         `;
@@ -104,17 +101,17 @@ app.get('/api/stats', async (req, res) => {
         const result = await pool.query(queryMaestra);
         const data = result.rows[0];
 
+        // Mapeo explícito para que el Frontend reciba exactamente lo que espera
         res.json({ 
-            total_llamadas: Number(data.t || 0), 
-            promedio_calidad: `${Number(data.c || 0).toFixed(1)}%`,
-            porcentaje_riesgo: `${Number(data.r || 0).toFixed(2)}%`,
-            porcentaje_motivo: `${Number(data.m || 0).toFixed(1)}%`,
-            promedio_emocion: `${Number(data.e || 0).toFixed(1)}%`,
-            promedio_ppm: Number(data.p || 0).toFixed(0)
+            total_llamadas: Number(data.total_llamadas || 0), 
+            promedio_calidad: `${Number(data.promedio_calidad || 0).toFixed(1)}%`,
+            porcentaje_riesgo: `${Number(data.porcentaje_riesgo || 0).toFixed(2)}%`,
+            porcentaje_motivo: `${Number(data.porcentaje_motivo || 0).toFixed(1)}%`,
+            promedio_emocion: `${Number(data.promedio_emocion || 0).toFixed(1)}%`,
+            promedio_ppm: Math.round(Number(data.promedio_ppm || 0))
         });
     } catch (e) { 
         console.error("Error en Stats Maestro:", e);
-        // Enviamos JSON para que el frontend no explote
         res.status(500).json({ error: e.message }); 
     }
 });
@@ -123,11 +120,6 @@ app.get('/api/stats', async (req, res) => {
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
     console.log(`
-    🚀 SERVIDOR MAESTRO ACTIVO
-    -------------------------------------------
-    Puerto: ${PORT}
-    Entorno: ${process.env.DATABASE_URL ? 'Nube (Railway)' : 'Local (Desarrollo)'}
-    Tablas: resumen_maestro, resumen_textmining
-    -------------------------------------------
+    🚀 SERVIDOR MAESTRO ACTIVO EN PUERTO ${PORT}
     `);
 });
