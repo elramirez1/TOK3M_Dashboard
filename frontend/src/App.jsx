@@ -12,7 +12,12 @@ import Cubo from './pages/Cubo';
 import Login from './components/Login';
 import logo from './assets/logo.jpg';
 
-const api = axios.create({ baseURL: 'http://127.0.0.1:8000/api' });
+// Detectamos la URL del servidor dinámicamente
+const SERVER_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://127.0.0.1:8000/api'
+  : 'https://tu-servidor-railway.app/api'; // <--- AQUÍ PEGA LA URL DE RAILWAY QUE TE PEDÍ
+
+const api = axios.create({ baseURL: SERVER_URL });
 
 const Heatmap = ({ data }) => {
   const [selectedYear, setSelectedYear] = useState(2025);
