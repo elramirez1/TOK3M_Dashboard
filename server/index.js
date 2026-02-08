@@ -4,42 +4,28 @@ const cors = require('cors');
 
 const app = express();
 
-// --- CONFIGURACIÓN DE CONEXIÓN OPTIMIZADA PARA RAILWAY ---
-// Railway inyecta automáticamente DATABASE_URL. Si no existe, usamos la interna.
-const internalConnectionString = 'postgresql://postgres:nSZObCCpVqAnEDphEuZDORPeMyrFziwF@postgres.railway.internal:5432/railway';
-
+// --- CONEXIÓN INTERNA SEGURA ---
 const pool = new Pool({ 
-    connectionString: process.env.DATABASE_URL || internalConnectionString,
+    connectionString: process.env.DATABASE_URL || 'postgresql://postgres:nSZObCCpVqAnEDphEuZDORPeMyrFziwF@postgres.railway.internal:5432/railway',
     ssl: { rejectUnauthorized: false } 
 });
 
-// Verificación de salud de la base de datos
 pool.connect(async (err, client, release) => {
-    if (err) {
-        console.error('❌ ERROR CRÍTICO DE CONEXIÓN:', err.stack);
-    } else {
-        console.log('✅ CONECTADO AL POSTGRES INTERNO DE RAILWAY');
-        try {
-            // Verificamos si la tabla existe y cuántos datos tiene
-            const res = await client.query('SELECT COUNT(*) as total FROM "resumen_maestro"');
-            console.log(`📊 ÉXITO: Se encontraron ${res.rows[0].total} registros en "resumen_maestro"`);
-        } catch (e) {
-            console.error('⚠️ ATENCIÓN: Conectado a la BD, pero no veo la tabla "resumen_maestro":', e.message);
-        }
-        release();
+    if (err) return console.error('❌ ERROR:', err.stack);
+    console.log('✅ BACKEND CONECTADO A LA DB INTERNA');
+    try {
+        const res = await client.query('SELECT COUNT(*) FROM "resumen_maestro"');
+        console.log(`📊 TOTAL FILAS EN DB: ${res.rows[0].count}`);
+    } catch (e) {
+        console.error('❌ LA TABLA NO EXISTE EN ESTA DB');
     }
+    release();
 });
 
-app.set('pool', pool);
 app.use(cors());
 app.use(express.json());
 
-// --- AUTH (Bypass para pruebas en test) ---
-app.post('/api/auth/login', (req, res) => {
-    res.json({ token: 'fake-jwt-token', user: 'admin' });
-});
-
-// --- RUTAS ---
+// RUTAS
 app.use('/api/resumen', require('./routes/resumen'));
 app.use('/api/calidad', require('./routes/calidad'));
 app.use('/api/riesgo', require('./routes/riesgo'));
@@ -49,18 +35,21 @@ app.use('/api/ppm', require('./routes/ppm'));
 app.use('/api/textmining', require('./routes/textmining')); 
 app.use('/api/cubo', require('./routes/cubo'));
 
-// --- STATS SIMPLE PARA TEST ---
+// ENDPOINT STATS
 app.get('/api/stats', async (req, res) => {
     try {
-        const result = await pool.query('SELECT SUM("total_gestiones")::bigint as t FROM "resumen_maestro"');
+        const result = await pool.query('SELECT SUM("total_gestiones")::bigint as t, AVG("FINAL") as c, (SUM("tiene_riesgo")::float / NULLIF(SUM("total_gestiones"), 0)) * 100 as r, AVG("tiene_motivo") as m, AVG("TOTAL_EMOCION") as e, AVG("PPM_PROMEDIO") as p FROM "resumen_maestro"');
+        const data = result.rows[0];
         res.json({ 
-            total_llamadas: Number(result.rows[0].t || 0),
-            status: "ok" 
+            total_llamadas: Number(data.t || 0), 
+            promedio_calidad: `${Number(data.c || 0).toFixed(1)}%`,
+            porcentaje_riesgo: `${Number(data.r || 0).toFixed(2)}%`,
+            porcentaje_motivo: `${Number(data.m || 0).toFixed(1)}%`,
+            promedio_emocion: `${Number(data.e || 0).toFixed(1)}%`,
+            promedio_ppm: Number(data.p || 0).toFixed(0)
         });
-    } catch (e) { 
-        res.status(500).json({ error: e.message }); 
-    }
+    } catch (e) { res.status(500).send(e.message); }
 });
 
 const PORT = process.env.PORT || 8000;
-app.listen(PORT, () => console.log(`🚀 SERVIDOR CORRIENDO EN PUERTO ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 SERVIDOR EN PUERTO ${PORT}`));
