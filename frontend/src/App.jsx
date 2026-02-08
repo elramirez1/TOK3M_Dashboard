@@ -119,7 +119,7 @@ const Heatmap = ({ data }) => {
 };
 
 function App() {
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [token, setToken] = useState('fake-jwt-token');
   const [view, setView] = useState('menu');
   const [cargando, setCargando] = useState(false);
   const [palabraKPI, setPalabraKPI] = useState("Cargando..."); 
