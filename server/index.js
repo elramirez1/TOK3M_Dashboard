@@ -4,11 +4,22 @@ const cors = require('cors');
 
 const app = express();
 
-// --- CONFIGURACIÓN DE CONEXIÓN DINÁMICA ---
-// Si existe DATABASE_URL (Railway), se conecta a la nube. Si no, a tu localhost.
+// --- CONFIGURACIÓN DE CONEXIÓN ---
+// Usamos la URL que Railway nos da para conexiones externas
+const DATABASE_URL_RAILWAY = 'postgresql://postgres:nSZObCCpVqAnEDphEuZDORPeMyrFziwF@shortline.proxy.rlwy.net:50330/railway';
+
 const pool = new Pool({ 
-    connectionString: process.env.DATABASE_URL || 'postgresql://danielramirezquintana@localhost:5432/tokem_db',
-    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+    connectionString: process.env.DATABASE_URL || DATABASE_URL_RAILWAY,
+    ssl: { rejectUnauthorized: false } // Obligatorio para Railway
+});
+
+// Probar conexión al iniciar
+pool.connect((err, client, release) => {
+  if (err) {
+    return console.error('❌ ERROR CONECTANDO A POSTGRES EN RAILWAY:', err.stack);
+  }
+  console.log('✅ CONECTADO EXITOSAMENTE A LA BASE DE DATOS');
+  release();
 });
 
 // Configuración de Middlewares
@@ -50,12 +61,12 @@ app.get('/api/heatmap', async (req, res) => {
     try {
         const query = `
             SELECT 
-                TO_CHAR(TO_DATE(NULLIF(ymd, 0)::text, 'YYYYMMDD'), 'YYYY-MM-DD') as fecha,
-                SUM(total_gestiones)::int as total
-            FROM resumen_maestro
-            WHERE ymd IS NOT NULL AND ymd > 0
-            GROUP BY ymd
-            ORDER BY ymd ASC
+                TO_CHAR(TO_DATE(NULLIF("ymd", 0)::text, 'YYYYMMDD'), 'YYYY-MM-DD') as fecha,
+                SUM("total_gestiones")::int as total
+            FROM "resumen_maestro"
+            WHERE "ymd" IS NOT NULL AND "ymd" > 0
+            GROUP BY "ymd"
+            ORDER BY "ymd" ASC
         `;
         const result = await pool.query(query);
         const heatmapData = {};
@@ -64,7 +75,7 @@ app.get('/api/heatmap', async (req, res) => {
         });
         res.json(heatmapData);
     } catch (e) { 
-        console.error("Error en Heatmap:", e);
+        console.error("Error en Heatmap:", e.message);
         res.status(500).json({ error: e.message }); 
     }
 });
@@ -77,18 +88,19 @@ app.get('/api/stats', async (req, res) => {
         if (inicio && fin) {
             const i = inicio.replace(/-/g, '');
             const f = fin.replace(/-/g, '');
-            w = `WHERE ymd BETWEEN ${i} AND ${f}`;
+            w = `WHERE "ymd" BETWEEN ${i} AND ${f}`;
         }
 
+        // Consultas con comillas dobles para evitar errores de mayúsculas/minúsculas
         const queryMaestra = `
             SELECT 
-                SUM(total_gestiones)::bigint as t,
+                SUM("total_gestiones")::bigint as t,
                 AVG("FINAL") as c,
-                (SUM(tiene_riesgo)::float / NULLIF(SUM(total_gestiones), 0)) * 100 as r,
-                AVG(tiene_motivo) as m,
+                (SUM("tiene_riesgo")::float / NULLIF(SUM("total_gestiones"), 0)) * 100 as r,
+                AVG("tiene_motivo") as m,
                 AVG("TOTAL_EMOCION") as e,
                 AVG("PPM_PROMEDIO") as p
-            FROM resumen_maestro 
+            FROM "resumen_maestro" 
             ${w}
         `;
 
@@ -104,13 +116,12 @@ app.get('/api/stats', async (req, res) => {
             promedio_ppm: Number(data.p || 0).toFixed(0)
         });
     } catch (e) { 
-        console.error("Error en Stats Maestro:", e);
-        res.status(500).send(e.message); 
+        console.error("Error detallado en Stats:", e.message);
+        res.status(500).send("Error de base de datos: " + e.message); 
     }
 });
 
 // --- INICIO DEL SERVIDOR ---
-// Railway asigna el puerto automáticamente mediante process.env.PORT
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
     console.log(`🚀 SERVIDOR ACTIVO EN PUERTO ${PORT}`);
