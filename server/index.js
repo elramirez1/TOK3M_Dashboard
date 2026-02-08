@@ -22,7 +22,12 @@ pool.connect(async (err, client, release) => {
     release();
 });
 
-app.use(cors());
+// En tu server/index.js asegúrate de tener esto así:
+app.use(cors({
+  origin: '*', // Permite que cualquier origen (tu frontend) pida datos
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 // RUTAS
