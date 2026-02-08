@@ -4,13 +4,11 @@ const cors = require('cors');
 
 const app = express();
 
-// --- CONFIGURACIÓN DE CONEXIÓN ---
-// Recuerda actualizar estas credenciales cuando subas a Railway
+// --- CONFIGURACIÓN DE CONEXIÓN DINÁMICA ---
+// Si existe DATABASE_URL (Railway), se conecta a la nube. Si no, a tu localhost.
 const pool = new Pool({ 
-    user: 'danielramirezquintana', 
-    host: 'localhost', 
-    database: 'tokem_db', 
-    port: 5432 
+    connectionString: process.env.DATABASE_URL || 'postgresql://danielramirezquintana@localhost:5432/tokem_db',
+    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
 // Configuración de Middlewares
@@ -27,14 +25,14 @@ app.post('/api/auth/login', (req, res) => {
     return res.status(401).json({ message: 'Credenciales inválidas' });
 });
 
-// --- IMPORTACIÓN DE RUTAS (Ahora todas apuntarán internamente a resumen_maestro) ---
+// --- IMPORTACIÓN DE RUTAS ---
 const resumenRoutes = require('./routes/resumen');
 const calidadRoutes = require('./routes/calidad');
 const riesgoRoutes = require('./routes/riesgo');
 const motivosRoutes = require('./routes/motivos');
 const emocionRoutes = require('./routes/emocion');
 const ppmRoutes = require('./routes/ppm');
-const textminingRoutes = require('./routes/textmining'); // Este sigue usando su propia tabla
+const textminingRoutes = require('./routes/textmining'); 
 const cuboRoutes = require('./routes/cubo');
 
 // --- DEFINICIÓN DE ENDPOINTS ---
@@ -47,7 +45,7 @@ app.use('/api/ppm', ppmRoutes);
 app.use('/api/textmining', textminingRoutes);
 app.use('/api/cubo', cuboRoutes);
 
-// --- ENDPOINT: HEATMAP (Optimizado con resumen_maestro) ---
+// --- ENDPOINT: HEATMAP ---
 app.get('/api/heatmap', async (req, res) => {
     try {
         const query = `
@@ -72,7 +70,6 @@ app.get('/api/heatmap', async (req, res) => {
 });
 
 // --- ENDPOINT: STATS (KPIS DEL MENÚ) ---
-// OPTIMIZADO: 1 sola consulta a 1 sola tabla en lugar de 6 consultas a 6 tablas.
 app.get('/api/stats', async (req, res) => {
     try {
         const { inicio, fin } = req.query;
@@ -113,14 +110,8 @@ app.get('/api/stats', async (req, res) => {
 });
 
 // --- INICIO DEL SERVIDOR ---
-const PORT = 8000;
+// Railway asigna el puerto automáticamente mediante process.env.PORT
+const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
-    console.log(`
-    🚀 SERVIDOR MAESTRO ACTIVO
-    -------------------------------------------
-    Puerto: ${PORT}
-    Estado: Migración a Tabla Única completada
-    Tablas origen: resumen_maestro, resumen_textmining
-    -------------------------------------------
-    `);
+    console.log(`🚀 SERVIDOR ACTIVO EN PUERTO ${PORT}`);
 });
