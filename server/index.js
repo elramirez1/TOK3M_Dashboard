@@ -4,16 +4,15 @@ const cors = require('cors');
 
 const app = express();
 
-// Configuración con la URL INTERNA que proporcionaste
+// --- CONFIGURACIÓN DE CONEXIÓN (RAILWAY INTERNA) ---
 const pool = new Pool({ 
     connectionString: 'postgresql://postgres:nSZObCCpVqAnEDphEuZDORPeMyrFziwF@postgres.railway.internal:5432/railway',
-    // En red interna eliminamos SSL estricto para evitar bloqueos de handshake
     ssl: false, 
     connectionTimeoutMillis: 5000,
     idleTimeoutMillis: 30000
 });
 
-// Diagnóstico de conexión inmediata
+// Verificación de conexión
 pool.connect((err, client, release) => {
     if (err) {
         console.error('❌ ERROR DE CONEXIÓN INTERNA:', err.message);
@@ -23,37 +22,86 @@ pool.connect((err, client, release) => {
     }
 });
 
+app.set('pool', pool);
 app.use(cors());
 app.use(express.json());
-app.set('pool', pool);
 
-// --- ENDPOINTS DE DATOS ---
+// --- ENDPOINT: HEATMAP (Tu lógica de local adaptada) ---
+app.get('/api/heatmap', async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                TO_CHAR(TO_DATE(NULLIF(ymd, 0)::text, 'YYYYMMDD'), 'YYYY-MM-DD') as fecha,
+                SUM(total_gestiones)::int as total
+            FROM resumen_maestro
+            WHERE ymd IS NOT NULL AND ymd > 0
+            GROUP BY ymd
+            ORDER BY ymd ASC
+        `;
+        const result = await pool.query(query);
+        const heatmapData = {};
+        result.rows.forEach(row => { 
+            if (row.fecha) heatmapData[row.fecha] = row.total; 
+        });
+        res.json(heatmapData);
+    } catch (e) { 
+        console.error("Error en Heatmap:", e);
+        res.status(500).json({ error: e.message }); 
+    }
+});
 
+// --- ENDPOINT: STATS (KPIS DEL MENÚ - Tu lógica de local) ---
 app.get('/api/stats', async (req, res) => {
     try {
-        const result = await pool.query('SELECT SUM("total_gestiones")::bigint as t, AVG("FINAL") as c FROM "resumen_maestro"');
+        const { inicio, fin } = req.query;
+        let w = '';
+        if (inicio && fin) {
+            const i = inicio.replace(/-/g, '');
+            const f = fin.replace(/-/g, '');
+            w = `WHERE ymd BETWEEN ${i} AND ${f}`;
+        }
+
+        const queryMaestra = `
+            SELECT 
+                SUM(total_gestiones)::bigint as t,
+                AVG("FINAL") as c,
+                (SUM(tiene_riesgo)::float / NULLIF(SUM(total_gestiones), 0)) * 100 as r,
+                AVG(tiene_motivo) * 100 as m,
+                AVG("TOTAL_EMOCION") as e,
+                AVG("PPM_PROMEDIO") as p
+            FROM resumen_maestro 
+            ${w}
+        `;
+
+        const result = await pool.query(queryMaestra);
         const data = result.rows[0];
+
         res.json({ 
             total_llamadas: Number(data.t || 0), 
-            promedio_calidad: `${Number(data.c || 0).toFixed(1)}%`
+            promedio_calidad: `${Number(data.c || 0).toFixed(1)}%`,
+            porcentaje_riesgo: `${Number(data.r || 0).toFixed(2)}%`,
+            porcentaje_motivo: `${Number(data.m || 0).toFixed(1)}%`,
+            promedio_emocion: `${Number(data.e || 0).toFixed(1)}%`,
+            promedio_ppm: Number(data.p || 0).toFixed(0)
         });
-    } catch (e) {
-        console.error('Error en /api/stats:', e.message);
-        res.json({ total_llamadas: 0, error: e.message });
+    } catch (e) { 
+        console.error("Error en Stats Maestro:", e);
+        res.status(500).send(e.message); 
     }
 });
 
-// Carga de rutas de módulos
-const modules = ['resumen', 'calidad', 'riesgo', 'motivos', 'emocion', 'ppm', 'textmining', 'cubo'];
-modules.forEach(route => {
-    try {
-        app.use(`/api/${route}`, require(`./routes/${route}`));
-    } catch (err) {
-        console.error(`⚠️ No se pudo cargar la ruta ./routes/${route}`);
-    }
-});
+// --- IMPORTACIÓN DE RUTAS ---
+app.use('/api/resumen', require('./routes/resumen'));
+app.use('/api/calidad', require('./routes/calidad'));
+app.use('/api/riesgo', require('./routes/riesgo'));
+app.use('/api/motivos', require('./routes/motivos'));
+app.use('/api/emocion', require('./routes/emocion'));
+app.use('/api/ppm', require('./routes/ppm'));
+app.use('/api/textmining', require('./routes/textmining'));
+app.use('/api/cubo', require('./routes/cubo'));
 
+// --- INICIO DEL SERVIDOR ---
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 SERVIDOR EN PUERTO ${PORT} CONECTADO A RED INTERNA`);
+    console.log(`🚀 SERVIDOR MAESTRO OPERATIVO EN PUERTO ${PORT}`);
 });
