@@ -273,6 +273,7 @@ function App() {
               <button 
                 key={m.id} 
                 onClick={() => {setView(m.id); setMenuAbierto(false);}} 
+                title={m.name} // <--- ESTA ES LA LÍNEA A AGREGAR
                 className={`w-10 h-10 flex items-center justify-center rounded-xl text-lg transition-all ${view === m.id ? `bg-${m.color}-500/20 border border-${m.color}-500/40 opacity-100 shadow-lg shadow-${m.color}-500/10` : 'opacity-30 hover:opacity-100 grayscale hover:grayscale-0'}`}
               >
                 {m.icon}
