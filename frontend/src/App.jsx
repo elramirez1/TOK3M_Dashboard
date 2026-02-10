@@ -339,11 +339,12 @@ function App() {
           </div>
         </div>
       ) : (
-        /* VISTAS DE MÓDULOS Y FILTROS */
+      /* VISTAS DE MÓDULOS Y FILTROS - SOLUCIÓN FILTROS INVISIBLES */
         <div className="space-y-6">
-          <div className="flex flex-col md:flex-row flex-wrap items-center gap-4 bg-[#111827] p-4 md:p-6 rounded-[1.5rem] md:rounded-[2rem] border border-gray-800 shadow-2xl">
+          <div className="flex flex-col md:flex-row items-center gap-4 bg-[#111827] p-5 md:p-6 rounded-[1.5rem] md:rounded-[2rem] border border-gray-800 shadow-2xl">
+            
+            {/* 1. FECHAS (Ancho completo en móvil, auto en escritorio) */}
             <div className="flex w-full md:w-auto gap-3">
-              {/* Fecha Inicio */}
               <div className="relative flex-1">
                 <label className="absolute -top-2 left-3 bg-[#111827] px-1 text-[8px] font-black text-blue-500 uppercase tracking-tighter z-10">
                   Desde
@@ -352,11 +353,9 @@ function App() {
                   type="date" 
                   value={fechaInicio} 
                   onChange={e => setFechaInicio(e.target.value)} 
-                  className="w-full bg-[#0B0F19] h-12 px-3 border border-gray-700 rounded-xl text-[11px] font-bold text-white outline-none focus:border-blue-500 transition-all [color-scheme:dark]" 
+                  className="w-full bg-[#0B0F19] h-12 px-3 border border-gray-700 rounded-xl text-[11px] font-bold text-white [color-scheme:dark]" 
                 />
               </div>
-
-              {/* Fecha Fin */}
               <div className="relative flex-1">
                 <label className="absolute -top-2 left-3 bg-[#111827] px-1 text-[8px] font-black text-blue-500 uppercase tracking-tighter z-10">
                   Hasta
@@ -365,12 +364,46 @@ function App() {
                   type="date" 
                   value={fechaFin} 
                   onChange={e => setFechaFin(e.target.value)} 
-                  className="w-full bg-[#0B0F19] h-12 px-3 border border-gray-700 rounded-xl text-[11px] font-bold text-white outline-none focus:border-blue-500 transition-all [color-scheme:dark]" 
+                  className="w-full bg-[#0B0F19] h-12 px-3 border border-gray-700 rounded-xl text-[11px] font-bold text-white [color-scheme:dark]" 
                 />
               </div>
             </div>
-            {/* ... Resto de componentes ExcelFilter (Ellos deben ser responsivos internamente) ... */}
-            <button onClick={resetFiltros} className="w-full md:w-auto bg-blue-900/20 text-blue-400 h-12 px-6 rounded-xl text-[10px] font-black border border-blue-500/30">🔄 RESETEAR</button>
+
+            {/* 2. FILTROS AVANZADOS (Se apilan en móvil, fila en escritorio) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:flex md:flex-row w-full md:w-auto gap-3 items-center">
+              <div className="w-full md:w-40">
+                <ExcelFilter 
+                  label="Empresas" 
+                  options={listas.empresas} 
+                  selected={empsSel} 
+                  onChange={setEmpsSel} 
+                />
+              </div>
+              <div className="w-full md:w-40">
+                <ExcelFilter 
+                  label="Ejecutivos" 
+                  options={listas.ejecutivos} 
+                  selected={ejesSel} 
+                  onChange={setEjesSel} 
+                />
+              </div>
+              <div className="w-full md:w-40">
+                <ExcelFilter 
+                  label="Contactos" 
+                  options={listas.contactos} 
+                  selected={contSel} 
+                  onChange={setContSel} 
+                />
+              </div>
+              
+              {/* 3. BOTÓN RESET */}
+              <button 
+                onClick={resetFiltros} 
+                className="w-full md:w-auto bg-blue-900/20 text-blue-400 h-12 px-6 rounded-xl text-[10px] font-black border border-blue-500/30 active:bg-blue-500 active:text-white transition-all"
+              >
+                🔄 RESETEAR
+              </button>
+            </div>
           </div>
           
           {/* RENDERIZADO DE PÁGINAS */}
