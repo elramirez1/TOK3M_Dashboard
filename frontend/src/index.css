@@ -4,9 +4,52 @@ body {
   margin: 0;
   background-color: #0B0F19;
   max-width: 100vw;
-  overflow-x: hidden; /* Argumento: Prohíbe el scroll horizontal */
+  overflow-x: hidden;
+  color: white;
+  /* Argumento: Forzar esquema oscuro para que los diálogos del sistema (como el selector de fecha) nazcan oscuros */
+  color-scheme: dark;
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* --- FIX PARA INPUTS DE FECHA EN MÓVIL --- */
+input[type="date"] {
+  position: relative;
+  /* Asegura que el texto siempre sea visible */
+  color: white;
+}
+
+/* Forzamos que el icono del calendario sea azul/blanco y no negro */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(0.8) sepia(100%) saturate(500%) hue-rotate(190deg); /* Lo tiñe de azul similar a tu tema */
+  opacity: 0.9;
+}
+
+/* --- OPTIMIZACIÓN DE SCROLLBARS PARA TABLAS (MODO CYBERPUNK) --- */
+.custom-scrollbar::-webkit-scrollbar {
+  height: 4px;
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #0B0F19;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #1D4ED8;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #3B82F6;
+}
+
+/* Evitar zoom automático en iPhone al hacer focus en inputs */
+@media screen and (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
 }
