@@ -121,6 +121,7 @@ const Heatmap = ({ data }) => {
 function App() {
   const [token, setToken] = useState('fake-jwt-token');
   const [view, setView] = useState('menu');
+  const [menuAbierto, setMenuAbierto] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [palabraKPI, setPalabraKPI] = useState("Cargando..."); 
   const [stats, setStats] = useState({ total_llamadas: 0, promedio_calidad: '0.0%', porcentaje_riesgo: '0.00%', porcentaje_motivo: '0.00%', promedio_emocion: '0.0%', promedio_ppm: 0 });
@@ -136,7 +137,7 @@ function App() {
   const [datosEvolucionPpm, setDatosEvolucionPpm] = useState([]);
   const [datosTextMining, setDatosTextMining] = useState([]); 
   const [datosCubo, setDatosCubo] = useState([]); 
-  const [fechaInicio, setFechaInicio] = useState('');
+  const [fechaInicio, setFechaInicio] = useState('');   
   const [fechaFin, setFechaFin] = useState('');
   const [empsSel, setEmpsSel] = useState([]);
   const [ejesSel, setEjesSel] = useState([]);
