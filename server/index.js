@@ -66,7 +66,7 @@ app.get('/api/stats', async (req, res) => {
                 SUM(total_gestiones)::bigint as t,
                 AVG("FINAL") as c,
                 (SUM(tiene_riesgo)::float / NULLIF(SUM(total_gestiones), 0)) * 100 as r,
-                AVG(tiene_motivo) * 100 as m,
+                AVG(tiene_motivo) as m,
                 AVG("TOTAL_EMOCION") as e,
                 AVG("PPM_PROMEDIO") as p
             FROM resumen_maestro 
