@@ -12,7 +12,6 @@ const Cubo = ({ data }) => {
     Productividad: ["ppm"]
   };
 
-  // --- LÓGICA DE EXPORTACIÓN (Solo Excel) ---
   const exportarExcel = async () => {
     try {
       const XLSX = await import('xlsx');
@@ -32,7 +31,6 @@ const Cubo = ({ data }) => {
     }
   };
 
-  // 1. Lógica de agrupación
   const datosAgrupados = useMemo(() => {
     if (!data || data.length === 0) return [];
     const mapa = new Map();
@@ -54,7 +52,6 @@ const Cubo = ({ data }) => {
     });
   }, [data, filaPrincipal, metricasActivas]);
 
-  // 2. Lógica de rangos
   const rangos = useMemo(() => {
     const res = {};
     metricasActivas.forEach(m => {
@@ -64,7 +61,6 @@ const Cubo = ({ data }) => {
     return res;
   }, [datosAgrupados, metricasActivas]);
 
-  // 3. Lógica de color Excel
   const getHeatmapColor = (valor, metrica) => {
     const { min, max } = rangos[metrica];
     if (max === min) return {};
@@ -74,39 +70,66 @@ const Cubo = ({ data }) => {
     const r = ratio < 0.5 ? 255 : Math.floor(255 * (1 - ratio) * 2);
     const g = ratio > 0.5 ? 255 : Math.floor(255 * ratio * 2);
     return {
-      backgroundColor: `rgba(${r}, ${g}, 0, 0.15)`,
-      color: `rgb(${Math.min(r + 50, 255)}, ${Math.min(g + 150, 255)}, 100)`,
-      borderLeft: `3px solid rgba(${r}, ${g}, 0, 0.5)`
+      backgroundColor: `rgba(${r}, ${g}, 0, 0.12)`,
+      color: `rgb(${Math.min(r + 40, 255)}, ${Math.min(g + 140, 255)}, 120)`,
+      borderLeft: `2px solid rgba(${r}, ${g}, 0, 0.4)`
     };
   };
 
-  if (!data || data.length === 0) return <div className="p-20 text-center text-gray-500 uppercase font-black">Cargando datos maestros...</div>;
+  if (!data || data.length === 0) {
+    return (
+      <div className="p-10 md:p-20 text-center text-gray-500 uppercase font-black animate-pulse flex flex-col items-center gap-4">
+        <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+        <span className="text-xs tracking-widest">Cargando datos maestros...</span>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="bg-[#111827] border border-gray-800 rounded-[2.5rem] p-8 shadow-2xl">
+    <div className="space-y-6 pb-10">
+      {/* PANEL DE CONTROL RESPONSIVO */}
+      <div className="bg-[#111827] border border-gray-800 rounded-[1.5rem] md:rounded-[2.5rem] p-5 md:p-8 shadow-2xl">
         <div className="flex flex-col gap-6">
-          <div className="flex justify-between items-center border-b border-gray-800 pb-4">
-            <div className="flex items-center gap-4 overflow-x-auto">
-              <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Ver por:</span>
-              {["ejecutivo", "empresa", "fecha_id", "contacto"].map(op => (
-                <button key={op} onClick={() => setFilaPrincipal(op)} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase border transition-all ${filaPrincipal === op ? 'bg-blue-600 border-blue-400 text-white shadow-lg' : 'bg-[#0B0F19] border-gray-800 text-gray-500'}`}>{op.replace('_id', '')}</button>
-              ))}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-800 pb-6 gap-4">
+            <div className="w-full md:w-auto">
+              <span className="text-[9px] font-black text-blue-500 uppercase tracking-[0.3em] block mb-3">Dimensión de Análisis</span>
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+                {["ejecutivo", "empresa", "fecha_id", "contacto"].map(op => (
+                  <button 
+                    key={op} 
+                    onClick={() => setFilaPrincipal(op)} 
+                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase border whitespace-nowrap transition-all ${filaPrincipal === op ? 'bg-blue-600 border-blue-400 text-white shadow-lg' : 'bg-[#0B0F19] border-gray-800 text-gray-500 hover:text-gray-300'}`}
+                  >
+                    {op.replace('_id', '')}
+                  </button>
+                ))}
+              </div>
             </div>
-            {/* Solo dejamos el botón de Excel */}
-            <button onClick={exportarExcel} className="bg-emerald-600/20 hover:bg-emerald-600 text-emerald-500 hover:text-white border border-emerald-600/50 px-6 py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-lg shadow-emerald-900/20">
-              📊 Exportar Excel
+            
+            <button 
+              onClick={exportarExcel} 
+              className="w-full md:w-auto bg-emerald-600/10 hover:bg-emerald-600 text-emerald-500 hover:text-white border border-emerald-600/30 px-6 py-3 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2"
+            >
+              <span className="text-sm">📊</span> Exportar Excel
             </button>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+          {/* SELECTOR DE MÉTRICAS - GRID RESPONSIVO */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
             {Object.entries(categorias).map(([cat, vars]) => (
-              <div key={cat} className="space-y-2">
-                <h4 className="text-[9px] font-black text-gray-500 uppercase border-l-2 border-emerald-500 pl-2">{cat}</h4>
-                <div className="flex flex-col gap-1">
+              <div key={cat} className="space-y-3">
+                <h4 className="text-[10px] font-black text-gray-400 uppercase flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  {cat}
+                </h4>
+                <div className="flex flex-wrap md:flex-col gap-1.5">
                   {vars.map(v => (
-                    <button key={v} onClick={() => setMetricasActivas(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v])} className={`text-left px-2 py-1 rounded text-[9px] font-bold border transition-colors ${metricasActivas.includes(v) ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400' : 'bg-transparent border-transparent text-gray-600 hover:bg-gray-800'}`}>
-                      {v.split('_').pop()}
+                    <button 
+                      key={v} 
+                      onClick={() => setMetricasActivas(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v])} 
+                      className={`text-[9px] font-bold px-3 py-1.5 rounded-lg border transition-all ${metricasActivas.includes(v) ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400' : 'bg-[#0B0F19] border-gray-800 text-gray-600 hover:border-gray-700'}`}
+                    >
+                      {v.split('_').slice(1).join(' ') || v}
                     </button>
                   ))}
                 </div>
@@ -116,29 +139,36 @@ const Cubo = ({ data }) => {
         </div>
       </div>
 
-      <div className="bg-[#111827] border border-gray-800 rounded-[2.5rem] shadow-2xl overflow-hidden">
-        <div className="overflow-auto max-h-[650px] relative">
+      {/* TABLA MAESTRA CON STICKY COLUMN */}
+      <div className="bg-[#111827] border border-gray-800 rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl overflow-hidden">
+        <div className="overflow-x-auto overflow-y-auto max-h-[500px] md:max-h-[650px] relative no-scrollbar">
           <table className="w-full text-left border-separate border-spacing-0">
-            <thead className="sticky top-0 z-50">
+            <thead className="sticky top-0 z-40">
               <tr className="bg-[#0B0F19]">
-                <th className="px-8 py-5 text-[11px] font-black text-white uppercase border-b border-gray-800 sticky left-0 bg-[#0B0F19] z-50 border-r border-gray-800">{filaPrincipal}</th>
-                <th className="px-6 py-5 text-[10px] font-black text-emerald-500 border-b border-gray-800">Σ GESTIONES</th>
+                <th className="px-5 md:px-8 py-4 md:py-5 text-[10px] md:text-[11px] font-black text-white uppercase border-b border-gray-800 sticky left-0 bg-[#0B0F19] z-50 border-r border-gray-800 min-w-[120px]">
+                  {filaPrincipal}
+                </th>
+                <th className="px-4 py-4 md:py-5 text-[9px] md:text-[10px] font-black text-emerald-500 border-b border-gray-800 whitespace-nowrap">
+                  Σ GESTIONES
+                </th>
                 {metricasActivas.map(m => (
-                  <th key={m} className="px-6 py-5 text-[10px] font-black text-blue-400 border-b border-gray-800 uppercase whitespace-nowrap">Ø {m.replace(/_/g, ' ')}</th>
+                  <th key={m} className="px-4 py-4 md:py-5 text-[9px] md:text-[10px] font-black text-blue-400 border-b border-gray-800 uppercase whitespace-nowrap">
+                    Ø {m.replace(/_/g, ' ')}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/20">
               {datosAgrupados.map((fila, i) => (
                 <tr key={i} className="hover:bg-white/[0.02] transition-colors group">
-                  <td className="px-8 py-3 text-[11px] font-bold text-gray-400 uppercase sticky left-0 bg-[#111827] border-r border-gray-800 z-10 group-hover:text-white">
+                  <td className="px-5 md:px-8 py-3 text-[10px] md:text-[11px] font-bold text-gray-400 uppercase sticky left-0 bg-[#111827] border-r border-gray-800 z-10 group-hover:text-white transition-colors truncate max-w-[150px]">
                     {fila.label}
                   </td>
-                  <td className="px-6 py-3 text-[11px] font-black text-emerald-500/70 border-r border-gray-800/30">
+                  <td className="px-4 py-3 text-[10px] md:text-[11px] font-black text-emerald-500/70 border-r border-gray-800/30">
                     {fila.gestiones.toLocaleString()}
                   </td>
                   {metricasActivas.map(m => (
-                    <td key={m} className="px-6 py-3 text-[11px] font-bold" style={getHeatmapColor(fila[m], m)}>
+                    <td key={m} className="px-4 py-3 text-[10px] md:text-[11px] font-bold whitespace-nowrap" style={getHeatmapColor(fila[m], m)}>
                       {fila[m].toFixed(1)}{m === 'ppm' ? '' : '%'}
                     </td>
                   ))}
@@ -146,6 +176,10 @@ const Cubo = ({ data }) => {
               ))}
             </tbody>
           </table>
+        </div>
+        {/* INDICADOR DE SCROLL PARA MÓVIL */}
+        <div className="md:hidden bg-[#0B0F19] p-2 text-center border-t border-gray-800">
+          <p className="text-[8px] font-black text-gray-600 uppercase tracking-[0.2em]">↔ Desliza para ver más métricas</p>
         </div>
       </div>
     </div>
