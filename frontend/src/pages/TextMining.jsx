@@ -10,6 +10,7 @@ const TextMining = ({ data = [], isFetching }) => {
   const [serverResult, setServerResult] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
 
+  // --- LÓGICA DE AUDITORÍA ---
   const auditResult = useMemo(() => {
     if (!searchTerm || !Array.isArray(data)) return null;
     const term = searchTerm.toLowerCase().trim();
@@ -46,99 +47,142 @@ const TextMining = ({ data = [], isFetching }) => {
     return () => clearTimeout(timer);
   }, [searchTerm, data]);
 
+  // --- LÓGICA DE LA NUBE (D3) ---
   useEffect(() => {
     if (!data || !Array.isArray(data) || data.length === 0) {
       setIsDrawing(false);
       return;
     }
+
     setIsDrawing(true);
     const svgElement = d3.select(svgRef.current);
     svgElement.selectAll("*").remove();
-    const width = 900;
-    const height = 500;
+
+    const isMobile = window.innerWidth < 768;
+    const width = isMobile ? window.innerWidth - 40 : 900;
+    const height = isMobile ? 400 : 500;
+    
     const colors = ["#60A5FA", "#3B82F6", "#2563EB", "#1D4ED8", "#93C5FD"];
+    
     const words = data.map(d => ({
       text: String(d.word || d.palabra || ""),
-      size: Math.max(12, Math.min(80, Math.log2(parseInt(d.count || d.conteo || 1)) * 7))
+      size: Math.max(10, Math.min(isMobile ? 50 : 80, Math.log2(parseInt(d.count || d.conteo || 1)) * (isMobile ? 5 : 7)))
     })).filter(w => w.text.length > 0);
 
     const layout = cloud()
       .size([width, height])
       .words(words)
-      .padding(3)
+      .padding(isMobile ? 2 : 3)
       .rotate(() => (~~(Math.random() * 2) * 90))
       .font("Inter, sans-serif")
       .fontSize(d => d.size)
       .on("end", (computedWords) => {
         const svg = svgElement
-          .attr("width", "100%").attr("height", height)
+          .attr("width", "100%")
+          .attr("height", height)
           .attr("viewBox", `0 0 ${width} ${height}`)
-          .append("g").attr("transform", `translate(${width / 2},${height / 2})`);
-        svg.selectAll("text").data(computedWords).enter().append("text")
-          .style("font-size", d => `${d.size}px`).style("font-family", "Inter, sans-serif")
-          .style("font-weight", "900").style("fill", (d, i) => colors[i % colors.length])
-          .attr("text-anchor", "middle").attr("transform", d => `translate(${[d.x, d.y]})rotate(${d.rotate})`)
-          .text(d => d.text).style("opacity", 0.9);
+          .append("g")
+          .attr("transform", `translate(${width / 2},${height / 2})`);
+
+        svg.selectAll("text")
+          .data(computedWords)
+          .enter().append("text")
+          .style("font-size", d => `${d.size}px`)
+          .style("font-family", "Inter, sans-serif")
+          .style("font-weight", "900")
+          .style("fill", (d, i) => colors[i % colors.length])
+          .attr("text-anchor", "middle")
+          .attr("transform", d => `translate(${[d.x, d.y]})rotate(${d.rotate})`)
+          .text(d => d.text)
+          .style("opacity", 0.9);
+        
         setIsDrawing(false);
       });
+
     layout.start();
   }, [data]);
 
   return (
-    <div className="space-y-6 relative">
-      <div className="bg-[#111827] border border-gray-800 p-6 rounded-[2.5rem] shadow-2xl">
+    <div className="space-y-6 relative pb-10">
+      
+      {/* 1. BUSCADOR / AUDITORÍA */}
+      <div className="bg-[#111827] border border-gray-800 p-5 md:p-6 rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl">
         <div className="flex flex-col md:flex-row items-center gap-6">
           <div className="flex-1 w-full">
             <h3 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.4em] mb-2 italic">Auditoría de Palabra</h3>
             <input
               type="text"
-              placeholder="Buscar palabra en historial..."
+              placeholder="Buscar palabra..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-[#0B0F19] border border-gray-700 rounded-xl px-4 py-3 text-white font-bold outline-none focus:border-blue-500 transition-all"
+              className="w-full bg-[#0B0F19] border border-gray-700 rounded-xl px-4 py-3 text-white font-bold outline-none focus:border-blue-500 transition-all text-sm"
             />
           </div>
-          <div className="md:w-[300px] flex items-center justify-around bg-[#0B0F19]/50 border border-gray-800 rounded-2xl p-4 min-h-[80px]">
-            {isSearching ? <span className="text-[10px] animate-pulse text-blue-400 font-black tracking-widest">BUSCANDO...</span> :
-             !auditResult || auditResult === "not_found" ? <span className="text-[10px] text-gray-600 font-black uppercase tracking-widest">Sin resultados</span> :
-             <>
-               <div className="text-center">
-                 <p className="text-3xl font-black text-blue-500">{Number(auditResult.count).toLocaleString()}</p>
-                 <p className="text-[8px] text-gray-500 font-black uppercase">Menciones</p>
-               </div>
-               <div className="text-center">
-                 <p className="text-3xl font-black text-white italic">#{auditResult.rank}</p>
-                 <p className="text-[8px] text-gray-500 font-black uppercase">Ranking</p>
-               </div>
-             </>
-            }
+          
+          <div className="w-full md:w-[300px] flex items-center justify-around bg-[#0B0F19]/50 border border-gray-800 rounded-2xl p-4 min-h-[80px]">
+            {isSearching ? (
+              <span className="text-[10px] animate-pulse text-blue-400 font-black tracking-widest uppercase">Buscando en BD...</span>
+            ) : !auditResult || auditResult === "not_found" ? (
+              <span className="text-[10px] text-gray-600 font-black uppercase tracking-widest">Sin resultados</span>
+            ) : (
+              <>
+                <div className="text-center">
+                  <p className="text-2xl md:text-3xl font-black text-blue-500 leading-none">
+                    {Number(auditResult.count).toLocaleString()}
+                  </p>
+                  <p className="text-[8px] text-gray-500 font-black uppercase mt-1">Menciones</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl md:text-3xl font-black text-white italic leading-none">#{auditResult.rank}</p>
+                  <p className="text-[8px] text-gray-500 font-black uppercase mt-1">Ranking</p>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
 
+      {/* OVERLAY DE CARGA */}
       {(isFetching || isDrawing) && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#0B0F19]/70 backdrop-blur-md rounded-[2.5rem]">
           <div className="flex flex-col items-center bg-[#111827] border border-blue-500/30 p-8 rounded-3xl shadow-2xl">
-            <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-            <p className="text-white font-black text-xs uppercase tracking-[0.3em] animate-pulse">Procesando...</p>
+            <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-white font-black text-[10px] uppercase tracking-[0.3em] animate-pulse">Procesando Nube...</p>
           </div>
         </div>
       )}
 
-      <div className="bg-[#111827] border border-gray-800 p-8 rounded-[2.5rem] shadow-2xl">
-        <h3 className="text-[14px] font-black uppercase tracking-[0.4em] text-blue-500 italic mb-6">CONCEPTUAL WORD CLOUD</h3>
-        <div className="bg-[#0B0F19]/50 rounded-[2.5rem] border border-gray-800/50 min-h-[500px] flex items-center justify-center overflow-hidden">
-          {data && data.length > 0 ? <svg ref={svgRef} className="w-full h-full"></svg> : <p className="text-gray-600 text-[10px] font-black uppercase italic">Sin datos</p>}
+      {/* 2. NUBE DE PALABRAS */}
+      <div className="bg-[#111827] border border-gray-800 p-5 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl overflow-hidden">
+        <h3 className="text-[12px] md:text-[14px] font-black uppercase tracking-[0.4em] text-blue-500 italic mb-6">Conceptual Word Cloud</h3>
+        <div className="bg-[#0B0F19]/50 rounded-[1.2rem] md:rounded-[2.5rem] border border-gray-800/50 min-h-[400px] flex items-center justify-center overflow-hidden">
+          {data && data.length > 0 ? (
+            <svg ref={svgRef} className="w-full h-full max-w-full"></svg>
+          ) : (
+            <div className="flex flex-col items-center opacity-30">
+              <span className="text-4xl mb-2">☁️</span>
+              <p className="text-gray-500 text-[10px] font-black uppercase italic">Sin datos para procesar</p>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      {/* 3. TOP 10 LISTADO (GRID RESPONSIVO) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
         {data && data.length > 0 ? data.slice(0, 10).map((item, i) => (
-          <div key={i} className="bg-[#111827] border border-gray-800 p-4 rounded-2xl flex flex-col items-center group hover:border-blue-500/50 transition-all">
-            <span className="text-blue-400 font-black text-xl">{parseInt(item.count || item.conteo).toLocaleString()}</span>
-            <span className="text-gray-500 text-[10px] font-black uppercase mt-1">{item.word || item.palabra}</span>
+          <div key={i} className="bg-[#111827] border border-gray-800 p-4 rounded-2xl flex flex-col items-center group hover:border-blue-500/50 transition-all border-b-4 border-b-blue-900/30">
+            <span className="text-blue-400 font-black text-lg md:text-xl">
+              {parseInt(item.count || item.conteo).toLocaleString()}
+            </span>
+            <span className="text-gray-500 text-[9px] md:text-[10px] font-black uppercase mt-1 truncate w-full text-center">
+              {item.word || item.palabra}
+            </span>
           </div>
-        )) : [...Array(5)].map((_, i) => <div key={i} className="bg-[#111827]/50 border border-gray-800/50 p-4 rounded-2xl h-24 animate-pulse"></div>)}
+        )) : (
+          [...Array(isMobile ? 4 : 5)].map((_, i) => (
+            <div key={i} className="bg-[#111827]/50 border border-gray-800/50 p-4 rounded-2xl h-24 animate-pulse"></div>
+          ))
+        )}
       </div>
     </div>
   );
