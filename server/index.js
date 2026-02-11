@@ -1,10 +1,13 @@
+// ARGUMENTO DE DIAGNÓSTICO: Restauración de lógica de Auth y Heatmap.
+// Se mantiene la conexión interna de Railway pero se reintegra el endpoint de Login.
+
 const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
 
 const app = express();
 
-// --- CONFIGURACIÓN DE CONEXIÓN (RAILWAY INTERNA) ---
+// --- CONFIGURACIÓN DE CONEXIÓN (Mantenemos la de Railway que ya funciona) ---
 const pool = new Pool({ 
     connectionString: 'postgresql://postgres:nSZObCCpVqAnEDphEuZDORPeMyrFziwF@postgres.railway.internal:5432/railway',
     ssl: false, 
@@ -26,7 +29,23 @@ app.set('pool', pool);
 app.use(cors());
 app.use(express.json());
 
-// --- ENDPOINT: HEATMAP (Tu lógica de local adaptada) ---
+// ==========================================
+// --- REINTEGRACIÓN: AUTENTICACIÓN ---
+// ==========================================
+app.post('/api/auth/login', (req, res) => {
+    const { username, password } = req.body;
+    // Esta es la lógica que tenías en tu PC
+    if (username === 'admin' && password === 'admin123') {
+        return res.json({ 
+            token: 'fake-jwt-token', 
+            user: 'admin',
+            message: 'Bienvenido al sistema TOK3M'
+        });
+    }
+    return res.status(401).json({ message: 'Credenciales inválidas' });
+});
+
+// --- ENDPOINT: HEATMAP ---
 app.get('/api/heatmap', async (req, res) => {
     try {
         const query = `
@@ -50,7 +69,7 @@ app.get('/api/heatmap', async (req, res) => {
     }
 });
 
-// --- ENDPOINT: STATS (KPIS DEL MENÚ - Tu lógica de local) ---
+// --- ENDPOINT: STATS (KPIS) ---
 app.get('/api/stats', async (req, res) => {
     try {
         const { inicio, fin } = req.query;
