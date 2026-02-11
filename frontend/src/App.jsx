@@ -11,6 +11,7 @@ import TextMining from './pages/TextMining';
 import Cubo from './pages/Cubo'; 
 import Login from './components/Login';
 import logo from './assets/logo.jpg';
+import AdminUsuarios from './pages/AdminUsuarios';
 
 // Detectamos la URL del servidor dinámicamente
 const SERVER_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
@@ -120,6 +121,7 @@ const Heatmap = ({ data }) => {
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
+  const [role, setRole] = useState(localStorage.getItem('role'));
   const [view, setView] = useState('menu');
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [cargando, setCargando] = useState(false);
@@ -144,7 +146,9 @@ function App() {
   const [contSel, setContSel] = useState([]);
   const handleLogin = (data) => {
     localStorage.setItem('token', data.token);
+    localStorage.setItem('role', data.role); // <-- AÑADIR ESTA LÍNEA
     setToken(data.token);
+    setRole(data.role); // <-- AÑADIR ESTA LÍNEA
   };
 
   const resetFiltros = () => {
@@ -163,7 +167,8 @@ function App() {
     { id: 'pago', icon: '💸', name: 'Motivos de No Pago', color: 'orange' },
     { id: 'ppm', icon: '⏱️', name: 'Análisis PPM', color: 'pink' },
     { id: 'textmining', icon: '🔤', name: 'Text Mining', color: 'yellow' },
-    { id: 'cubo', icon: '🧊', name: 'Cubo Flexible', color: 'indigo' }
+    { id: 'cubo', icon: '🧊', name: 'Cubo Flexible', color: 'indigo' },
+    ...(role === 'admin' ? [{ id: 'usuarios', icon: '👥', name: 'Gestión Usuarios', color: 'slate' }] : [])
   ];
 
   const fetchMenuData = async () => {
@@ -348,71 +353,72 @@ function App() {
       ) : (
       /* VISTAS DE MÓDULOS Y FILTROS - SOLUCIÓN FILTROS INVISIBLES */
         <div className="space-y-6">
-          <div className="flex flex-col md:flex-row items-center gap-4 bg-[#111827] p-5 md:p-6 rounded-[1.5rem] md:rounded-[2rem] border border-gray-800 shadow-2xl">
-            
-            {/* 1. FECHAS (Ancho completo en móvil, auto en escritorio) */}
-            <div className="flex w-full md:w-auto gap-3">
-              <div className="relative flex-1">
-                <label className="absolute -top-2 left-3 bg-[#111827] px-1 text-[8px] font-black text-blue-500 uppercase tracking-tighter z-10">
-                  Desde
-                </label>
-                <input 
-                  type="date" 
-                  value={fechaInicio} 
-                  onChange={e => setFechaInicio(e.target.value)} 
-                  className="w-full bg-[#0B0F19] h-12 px-3 border border-gray-700 rounded-xl text-[11px] font-bold text-white [color-scheme:dark]" 
-                />
-              </div>
-              <div className="relative flex-1">
-                <label className="absolute -top-2 left-3 bg-[#111827] px-1 text-[8px] font-black text-blue-500 uppercase tracking-tighter z-10">
-                  Hasta
-                </label>
-                <input 
-                  type="date" 
-                  value={fechaFin} 
-                  onChange={e => setFechaFin(e.target.value)} 
-                  className="w-full bg-[#0B0F19] h-12 px-3 border border-gray-700 rounded-xl text-[11px] font-bold text-white [color-scheme:dark]" 
-                />
-              </div>
-            </div>
-
-            {/* 2. FILTROS AVANZADOS (Se apilan en móvil, fila en escritorio) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:flex md:flex-row w-full md:w-auto gap-3 items-center">
-              <div className="w-full md:w-40">
-                <ExcelFilter 
-                  label="Empresas" 
-                  options={listas.empresas} 
-                  selected={empsSel} 
-                  onChange={setEmpsSel} 
-                />
-              </div>
-              <div className="w-full md:w-40">
-                <ExcelFilter 
-                  label="Ejecutivos" 
-                  options={listas.ejecutivos} 
-                  selected={ejesSel} 
-                  onChange={setEjesSel} 
-                />
-              </div>
-              <div className="w-full md:w-40">
-                <ExcelFilter 
-                  label="Contactos" 
-                  options={listas.contactos} 
-                  selected={contSel} 
-                  onChange={setContSel} 
-                />
-              </div>
+          {view !== 'usuarios' && (
+            <div className="flex flex-col md:flex-row items-center gap-4 bg-[#111827] p-5 md:p-6 rounded-[1.5rem] md:rounded-[2rem] border border-gray-800 shadow-2xl">
               
-              {/* 3. BOTÓN RESET */}
-              <button 
-                onClick={resetFiltros} 
-                className="w-full md:w-auto bg-blue-900/20 text-blue-400 h-12 px-6 rounded-xl text-[10px] font-black border border-blue-500/30 active:bg-blue-500 active:text-white transition-all"
-              >
-                🔄 RESETEAR
-              </button>
+              {/* 1. FECHAS (Ancho completo en móvil, auto en escritorio) */}
+              <div className="flex w-full md:w-auto gap-3">
+                <div className="relative flex-1">
+                  <label className="absolute -top-2 left-3 bg-[#111827] px-1 text-[8px] font-black text-blue-500 uppercase tracking-tighter z-10">
+                    Desde
+                  </label>
+                  <input 
+                    type="date" 
+                    value={fechaInicio} 
+                    onChange={e => setFechaInicio(e.target.value)} 
+                    className="w-full bg-[#0B0F19] h-12 px-3 border border-gray-700 rounded-xl text-[11px] font-bold text-white [color-scheme:dark]" 
+                  />
+                </div>
+                <div className="relative flex-1">
+                  <label className="absolute -top-2 left-3 bg-[#111827] px-1 text-[8px] font-black text-blue-500 uppercase tracking-tighter z-10">
+                    Hasta
+                  </label>
+                  <input 
+                    type="date" 
+                    value={fechaFin} 
+                    onChange={e => setFechaFin(e.target.value)} 
+                    className="w-full bg-[#0B0F19] h-12 px-3 border border-gray-700 rounded-xl text-[11px] font-bold text-white [color-scheme:dark]" 
+                  />
+                </div>
+              </div>
+
+              {/* 2. FILTROS AVANZADOS (Se apilan en móvil, fila en escritorio) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:flex md:flex-row w-full md:w-auto gap-3 items-center">
+                <div className="w-full md:w-40">
+                  <ExcelFilter 
+                    label="Empresas" 
+                    options={listas.empresas} 
+                    selected={empsSel} 
+                    onChange={setEmpsSel} 
+                  />
+                </div>
+                <div className="w-full md:w-40">
+                  <ExcelFilter 
+                    label="Ejecutivos" 
+                    options={listas.ejecutivos} 
+                    selected={ejesSel} 
+                    onChange={setEjesSel} 
+                  />
+                </div>
+                <div className="w-full md:w-40">
+                  <ExcelFilter 
+                    label="Contactos" 
+                    options={listas.contactos} 
+                    selected={contSel} 
+                    onChange={setContSel} 
+                  />
+                </div>
+                
+                {/* 3. BOTÓN RESET */}
+                <button 
+                  onClick={resetFiltros} 
+                  className="w-full md:w-auto bg-blue-900/20 text-blue-400 h-12 px-6 rounded-xl text-[10px] font-black border border-blue-500/30 active:bg-blue-500 active:text-white transition-all"
+                >
+                  🔄 RESETEAR
+                </button>
+              </div>
             </div>
-          </div>
-          
+          )}
           {/* RENDERIZADO DE PÁGINAS */}
           <div className="w-full overflow-hidden">
              {view === 'resumen' && <Resumen graficos={graficos} />}
@@ -423,6 +429,7 @@ function App() {
              {view === 'ppm' && <Ppm data={datosPpm} evolucion={datosEvolucionPpm} />}
              {view === 'textmining' && <TextMining data={datosTextMining} isFetching={cargando} />}
              {view === 'cubo' && <Cubo data={datosCubo} />}
+             {view === 'usuarios' && <AdminUsuarios token={token} serverUrl={SERVER_URL} />}
           </div>
         </div>
       )}
