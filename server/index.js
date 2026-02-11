@@ -1,5 +1,5 @@
-// ARGUMENTO DE DIAGNÓSTICO: Restauración de lógica de Auth y Heatmap.
-// Se mantiene la conexión interna de Railway pero se reintegra el endpoint de Login.
+// ARGUMENTO DE DIAGNÓSTICO: Migración de autenticación estática a dinámica mediante PostgreSQL y habilitación de CRUD de usuarios.
+// Se mantiene la infraestructura de Railway y se expande la API para gestión administrativa.
 
 const express = require('express');
 const { Pool } = require('pg');
@@ -7,7 +7,7 @@ const cors = require('cors');
 
 const app = express();
 
-// --- CONFIGURACIÓN DE CONEXIÓN (Mantenemos la de Railway que ya funciona) ---
+// --- CONFIGURACIÓN DE CONEXIÓN ---
 const pool = new Pool({ 
     connectionString: 'postgresql://postgres:nSZObCCpVqAnEDphEuZDORPeMyrFziwF@postgres.railway.internal:5432/railway',
     ssl: false, 
@@ -30,22 +30,76 @@ app.use(cors());
 app.use(express.json());
 
 // ==========================================
-// --- REINTEGRACIÓN: AUTENTICACIÓN ---
+// --- SISTEMA DE AUTENTICACIÓN DINÁMICA ---
 // ==========================================
-app.post('/api/auth/login', (req, res) => {
+
+app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body;
-    // Esta es la lógica que tenías en tu PC
-    if (username === 'admin' && password === 'admin123') {
-        return res.json({ 
-            token: 'fake-jwt-token', 
-            user: 'admin',
-            message: 'Bienvenido al sistema TOK3M'
-        });
+    try {
+        const result = await pool.query(
+            'SELECT username, role FROM usuarios WHERE username = $1 AND password = $2',
+            [username, password]
+        );
+
+        if (result.rows.length > 0) {
+            const user = result.rows[0];
+            return res.json({ 
+                token: 'fake-jwt-token', // En el futuro podrías usar JWT real aquí
+                user: user.username,
+                role: user.role,
+                message: 'Bienvenido al sistema TOK3M'
+            });
+        }
+        return res.status(401).json({ message: 'Credenciales inválidas' });
+    } catch (e) {
+        console.error("Error en Login DB:", e.message);
+        res.status(500).json({ error: "Error en el servidor de autenticación" });
     }
-    return res.status(401).json({ message: 'Credenciales inválidas' });
 });
 
-// --- ENDPOINT: HEATMAP ---
+// ==========================================
+// --- GESTIÓN DE USUARIOS (ADMIN ONLY) ---
+// ==========================================
+
+// Listar todos los usuarios
+app.get('/api/users', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT id, username, role FROM usuarios ORDER BY id ASC');
+        res.json(result.rows);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Crear nuevo usuario
+app.post('/api/users', async (req, res) => {
+    const { username, password, role } = req.body;
+    try {
+        await pool.query(
+            'INSERT INTO usuarios (username, password, role) VALUES ($1, $2, $3)',
+            [username, password, role || 'user']
+        );
+        res.json({ message: 'Usuario creado exitosamente' });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Eliminar usuario por ID
+app.delete('/api/users/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await pool.query('DELETE FROM usuarios WHERE id = $1', [id]);
+        res.json({ message: 'Usuario eliminado correctamente' });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ==========================================
+// --- ENDPOINTS DE DATOS Y DASHBOARD ---
+// ==========================================
+
 app.get('/api/heatmap', async (req, res) => {
     try {
         const query = `
@@ -69,7 +123,6 @@ app.get('/api/heatmap', async (req, res) => {
     }
 });
 
-// --- ENDPOINT: STATS (KPIS) ---
 app.get('/api/stats', async (req, res) => {
     try {
         const { inicio, fin } = req.query;
