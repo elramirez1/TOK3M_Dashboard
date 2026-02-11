@@ -119,7 +119,7 @@ const Heatmap = ({ data }) => {
 };
 
 function App() {
-  const [token, setToken] = useState('fake-jwt-token');
+  const [token, setToken] = useState(localStorage.getItem('token'));
   const [view, setView] = useState('menu');
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [cargando, setCargando] = useState(false);
@@ -142,6 +142,10 @@ function App() {
   const [empsSel, setEmpsSel] = useState([]);
   const [ejesSel, setEjesSel] = useState([]);
   const [contSel, setContSel] = useState([]);
+  const handleLogin = (data) => {
+    localStorage.setItem('token', data.token);
+    setToken(data.token);
+  };
 
   const resetFiltros = () => {
     setFechaInicio('');
@@ -240,7 +244,10 @@ function App() {
     if(view === 'menu') fetchMenuData(); 
   }, [fetchData, view]);
 
-  if (!token) return <Login onLogin={() => setToken(localStorage.getItem('token'))} />;
+  // ESTA ES LA PARTE QUE DEBES ASEGURAR:
+  if (!token) {
+    return <Login onLogin={handleLogin} />; // <--- Asegúrate de que pase 'handleLogin'
+  }
 
   return (
   <div className="min-h-screen bg-[#0B0F19] text-white p-4 md:p-8 overflow-x-hidden">
