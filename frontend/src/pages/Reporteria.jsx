@@ -1,59 +1,37 @@
-// ARGUMENTO DE DIAGNÓSTICO: Módulo de reportes pesados con selectores independientes 
-// para evitar conflictos con filtros globales y envío de parámetros al obrero local.
+// ARGUMENTO DE DIAGNÓSTICO: Interfaz de usuario con selectores independientes para reportes locales.
+// Esto separa la lógica de filtros globales de la ejecución en hardware propio.
 
-const [fechaReporte, setFechaReporte] = useState("20250102");
-const [empresaReporte, setEmpresaReporte] = useState("TODAS");
-const [cargando, setCargando] = useState(false);
-
-const lanzarProcesoLocal = async () => {
-  setCargando(true);
-  try {
-    const response = await axios.post(`${API_URL}/descargar-reporte`, {
-      fecha: fechaReporte,
-      empresa: empresaReporte
-    }, { responseType: 'blob' });
-
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    setReporteUrl(url); // Esto cargará el HTML generado en tu PC dentro del iframe
-  } catch (error) {
-    console.error("Error en el proceso local:", error);
-    alert("Error al conectar con el obrero local. Revisa Ngrok y el script Python.");
-  } finally {
-    setCargando(false);
-  }
-};
-
-// ... dentro del return JSX ...
-
-<div className="bg-white p-6 rounded-xl shadow-lg border-2 border-orange-500">
-  <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-    <Cpu size={24} className="text-orange-500" />
-    GENERADOR DE INFORMES PESADOS (LOCAL)
-  </h2>
-  
-  <p className="text-sm text-gray-600 mb-6">
-    Este proceso se ejecuta en tu hardware. Los filtros generales de la App han sido 
-    <b> deshabilitados</b> para esta operación.
-  </p>
-
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-    <div>
-      <label className="block text-xs font-bold mb-1">FECHA DEL REPORTE (YYYYMMDD)</label>
-      <input 
-        type="number" 
-        value={fechaReporte}
-        onChange={(e) => setFechaReporte(e.target.value)}
-        className="w-full p-2 border rounded bg-gray-50 font-mono"
-      />
+<div className="bg-slate-50 p-6 rounded-xl border-2 border-orange-500 shadow-inner">
+  <div className="flex items-center gap-3 mb-6">
+    <div className="p-2 bg-orange-100 rounded-lg text-orange-600">
+      <Cpu size={28} />
     </div>
     <div>
-      <label className="block text-xs font-bold mb-1">EMPRESA / FILTRO</label>
+      <h2 className="text-xl font-black text-slate-800">GENERADOR DE INFORMES PESADOS</h2>
+      <p className="text-sm text-slate-500 font-medium">Procesamiento directo en hardware local</p>
+    </div>
+  </div>
+
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <div className="space-y-2">
+      <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Fecha del Reporte</label>
+      <input 
+        type="number" 
+        placeholder="YYYYMMDD"
+        value={fechaReporte}
+        onChange={(e) => setFechaReporte(e.target.value)}
+        className="w-full p-3 bg-white border-2 border-slate-200 rounded-lg focus:border-orange-500 outline-none transition-all font-mono text-lg"
+      />
+    </div>
+
+    <div className="space-y-2">
+      <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Seleccionar Empresa</label>
       <select 
         value={empresaReporte}
         onChange={(e) => setEmpresaReporte(e.target.value)}
-        className="w-full p-2 border rounded bg-gray-50"
+        className="w-full p-3 bg-white border-2 border-slate-200 rounded-lg focus:border-orange-500 outline-none transition-all font-bold text-slate-700"
       >
-        <option value="TODAS">Todas las Empresas</option>
+        <option value="TODAS">🚀 Todas las empresas</option>
         <option value="EMP1">Empresa 1</option>
         <option value="EMP2">Empresa 2</option>
       </select>
@@ -63,11 +41,17 @@ const lanzarProcesoLocal = async () => {
   <button 
     onClick={lanzarProcesoLocal}
     disabled={cargando}
-    className={`w-full py-4 rounded-lg font-black text-white transition-all ${
-      cargando ? 'bg-gray-400' : 'bg-orange-600 hover:bg-orange-700 shadow-md'
+    className={`w-full py-5 rounded-xl font-black text-white text-lg transform active:scale-95 transition-all shadow-lg ${
+      cargando 
+        ? 'bg-slate-400 cursor-not-allowed' 
+        : 'bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600'
     }`}
   >
-    {cargando ? "⌛ PROCESANDO EN HARDWARE LOCAL..." : "🚀 LANZAR PROCESO"}
+    {cargando ? (
+      <span className="flex items-center justify-center gap-2">
+        <span className="animate-spin">⌛</span> PROCESANDO EN MACBOOK...
+      </span>
+    ) : "🚀 LANZAR PROCESO DE GENERACIÓN"}
   </button>
 </div>
 
