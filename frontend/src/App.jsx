@@ -10,6 +10,7 @@ import Ppm from './pages/Ppm';
 import TextMining from './pages/TextMining'; 
 import Cubo from './pages/Cubo'; 
 import Login from './components/Login';
+import Reporteria from './pages/Reporteria'; // FILA 12.5
 import logo from './assets/LogoTok3m.png';
 import AdminUsuarios from './pages/AdminUsuarios';
 
@@ -168,6 +169,7 @@ function App() {
     { id: 'ppm', icon: '⏱️', name: 'Análisis PPM', color: 'pink' },
     { id: 'textmining', icon: '🔤', name: 'Text Mining', color: 'yellow' },
     { id: 'cubo', icon: '🧊', name: 'Cubo Flexible', color: 'indigo' },
+    { id: 'reporteria', icon: '📁', name: 'Reportería Pesada', color: 'blue' }, // FILA 157
     ...(role === 'admin' ? [{ id: 'usuarios', icon: '👥', name: 'Gestión Usuarios', color: 'slate' }] : [])
   ];
 
@@ -429,6 +431,7 @@ function App() {
              {view === 'ppm' && <Ppm data={datosPpm} evolucion={datosEvolucionPpm} />}
              {view === 'textmining' && <TextMining data={datosTextMining} isFetching={cargando} />}
              {view === 'cubo' && <Cubo data={datosCubo} />}
+             {view === 'reporteria' && <Reporteria api={api} fechaInicio={fechaInicio} empsSel={empsSel} contSel={contSel} />} // FILA 315
              {view === 'usuarios' && <AdminUsuarios token={token} serverUrl={SERVER_URL} />}
           </div>
         </div>
