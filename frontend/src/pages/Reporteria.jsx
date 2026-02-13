@@ -70,3 +70,6 @@ const lanzarProcesoLocal = async () => {
     {cargando ? "⌛ PROCESANDO EN HARDWARE LOCAL..." : "🚀 LANZAR PROCESO"}
   </button>
 </div>
+
+// Al final del archivo Reporteria.jsx
+export default Reporteria;
