@@ -1,6 +1,6 @@
-// ARGUMENTO DE DIAGNÓSTICO: Consolidación total de infraestructura. 
-// Se mantiene la lógica de rutas secundarias, stats detallados y seguridad perimetral.
-// Se añade el soporte para streaming de reportes desde hardware local (PC del cliente).
+// ARGUMENTO DE DIAGNÓSTICO: Consolidación total de infraestructura híbrida. 
+// Se mantiene la integridad de los 8 módulos de rutas secundarias y la lógica de agregación de stats.
+// Se integra la URL de producción del túnel ngrok para procesamiento pesado en hardware local.
 
 const express = require('express');
 const { Pool } = require('pg');
@@ -28,7 +28,7 @@ const inicializarDB = async () => {
     }
 };
 
-// Verificación de conexión
+// Verificación de conexión e inicio de migración
 pool.connect((err, client, release) => {
     if (err) {
         console.error('❌ ERROR DE CONEXIÓN INTERNA:', err.message);
@@ -62,6 +62,7 @@ app.post('/api/auth/login', async (req, res) => {
         const user = userRes.rows[0];
         const ahora = new Date();
 
+        // Verificar bloqueo temporal
         if (user.bloqueado_hasta && ahora < new Date(user.bloqueado_hasta)) {
             const espera = Math.ceil((new Date(user.bloqueado_hasta) - ahora) / 1000);
             return res.status(403).json({ 
@@ -70,6 +71,7 @@ app.post('/api/auth/login', async (req, res) => {
         }
 
         if (user.password === password) {
+            // ÉXITO: Resetear contadores
             await pool.query(
                 'UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = $1',
                 [user.id]
@@ -81,6 +83,7 @@ app.post('/api/auth/login', async (req, res) => {
                 message: 'Bienvenido al sistema TOK3M'
             });
         } else {
+            // ERROR: Lógica exponencial
             const fallos = (user.intentos_fallidos || 0) + 1;
             let bloqueo = null;
 
@@ -107,29 +110,29 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // ==========================================
-// --- PUENTE HACIA PC LOCAL (PROCESO PESADO) ---
+// --- PUENTE HACIA PC LOCAL (REPORTE PESADO) ---
 // ==========================================
 
 app.post('/api/descargar-reporte', async (req, res) => {
-    // ESTA URL debe ser la de tu ngrok actual
-    const URL_MI_PC = "https://TU_URL_DE_NGROK.ngrok-free.app/generar-informe";
+    // URL DE TU NGROK ACTUALIZADA
+    const URL_MI_PC = "https://olympia-subdilated-latoyia.ngrok-free.dev/generar-informe";
 
     try {
         const respuesta = await axios({
             method: 'post',
             url: URL_MI_PC,
-            data: req.body, // Envía { fecha, empresa }
+            data: req.body, 
             responseType: 'stream',
-            timeout: 600000 // 10 minutos
+            timeout: 600000 // 10 minutos de margen para el proceso pesado
         });
 
         res.setHeader('Content-Type', 'text/html');
-        // Transmitimos el archivo de 15MB bit a bit para no saturar Railway
+        // Transmisión directa por pipe para ahorrar memoria en Railway
         respuesta.data.pipe(res);
         
     } catch (e) {
         console.error("Error en puente local:", e.message);
-        res.status(502).json({ error: "El procesador local (PC) está desconectado." });
+        res.status(502).json({ error: "Tu computadora local no respondió al pedido." });
     }
 });
 
@@ -235,7 +238,7 @@ app.get('/api/stats', async (req, res) => {
     }
 });
 
-// --- IMPORTACIÓN DE RUTAS SECUNDARIAS ---
+// --- IMPORTACIÓN DE RUTAS SECUNDARIAS (RESTAURADAS) ---
 app.use('/api/resumen', require('./routes/resumen'));
 app.use('/api/calidad', require('./routes/calidad'));
 app.use('/api/riesgo', require('./routes/riesgo'));
