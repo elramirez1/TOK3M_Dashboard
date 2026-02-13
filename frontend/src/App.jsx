@@ -10,7 +10,7 @@ import Ppm from './pages/Ppm';
 import TextMining from './pages/TextMining'; 
 import Cubo from './pages/Cubo'; 
 import Login from './components/Login';
-import logo from './assets/logo.jpg';
+import logo from './assets/LogoTok3m.png';
 import AdminUsuarios from './pages/AdminUsuarios';
 
 // Detectamos la URL del servidor dinámicamente
