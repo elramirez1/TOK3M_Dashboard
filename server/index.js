@@ -114,7 +114,7 @@ app.post('/api/auth/login', async (req, res) => {
 // ==========================================
 
 app.post('/api/descargar-reporte', async (req, res) => {
-    // URL DE TU NGROK ACTUALIZADA
+    // URL DE TU NGROK ACTUALIZADA (Asegúrate de que el script Python use el puerto 5001)
     const URL_MI_PC = "https://olympia-subdilated-latoyia.ngrok-free.dev/generar-informe";
 
     try {
@@ -132,7 +132,7 @@ app.post('/api/descargar-reporte', async (req, res) => {
         
     } catch (e) {
         console.error("Error en puente local:", e.message);
-        res.status(502).json({ error: "Tu computadora local no respondió al pedido." });
+        res.status(502).json({ error: "Tu computadora local no respondió al pedido. Verifica Ngrok y el puerto 5001." });
     }
 });
 
