@@ -1,10 +1,11 @@
-// ARGUMENTO DE DIAGNÓSTICO: Implementación de seguridad perimetral a nivel de aplicación.
-// Se integra script de migración automática de esquema y lógica de "Backoff Exponencial" 
-// para prevenir ataques de fuerza bruta en el endpoint de autenticación.
+// ARGUMENTO DE DIAGNÓSTICO: Consolidación total de infraestructura. 
+// Se mantiene la lógica de rutas secundarias, stats detallados y seguridad perimetral.
+// Se añade el soporte para streaming de reportes desde hardware local (PC del cliente).
 
 const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
+const axios = require('axios');
 
 const app = express();
 
@@ -16,28 +17,18 @@ const pool = new Pool({
     idleTimeoutMillis: 30000
 });
 
-// --- SCRIPT DE MIGRACIÓN AUTOMÁTICA (Para planes sin consola SQL directa) ---
+// --- SCRIPT DE MIGRACIÓN AUTOMÁTICA (Seguridad) ---
 const inicializarDB = async () => {
     try {
-        // Añadir columna intentos_fallidos si no existe
-        await pool.query(`
-            ALTER TABLE usuarios 
-            ADD COLUMN IF NOT EXISTS intentos_fallidos INT DEFAULT 0
-        `);
-        
-        // Añadir columna bloqueado_hasta si no existe
-        await pool.query(`
-            ALTER TABLE usuarios 
-            ADD COLUMN IF NOT EXISTS bloqueado_hasta TIMESTAMP WITH TIME ZONE
-        `);
-        
-        console.log('✅ ESQUEMA DE SEGURIDAD VERIFICADO (Columnas listas)');
+        await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS intentos_fallidos INT DEFAULT 0`);
+        await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS bloqueado_hasta TIMESTAMP WITH TIME ZONE`);
+        console.log('✅ ESQUEMA DE SEGURIDAD VERIFICADO');
     } catch (err) {
         console.error('⚠️ Nota sobre DB:', err.message);
     }
 };
 
-// Verificación de conexión e inicio de migración
+// Verificación de conexión
 pool.connect((err, client, release) => {
     if (err) {
         console.error('❌ ERROR DE CONEXIÓN INTERNA:', err.message);
@@ -59,7 +50,6 @@ app.use(express.json());
 app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body;
     try {
-        // 1. Buscar usuario primero para validar estado de bloqueo
         const userRes = await pool.query(
             'SELECT * FROM usuarios WHERE username = $1',
             [username]
@@ -72,7 +62,6 @@ app.post('/api/auth/login', async (req, res) => {
         const user = userRes.rows[0];
         const ahora = new Date();
 
-        // 2. Verificar si la cuenta está bloqueada temporalmente
         if (user.bloqueado_hasta && ahora < new Date(user.bloqueado_hasta)) {
             const espera = Math.ceil((new Date(user.bloqueado_hasta) - ahora) / 1000);
             return res.status(403).json({ 
@@ -80,14 +69,11 @@ app.post('/api/auth/login', async (req, res) => {
             });
         }
 
-        // 3. Validar contraseña
         if (user.password === password) {
-            // ÉXITO: Resetear contadores de fallo
             await pool.query(
                 'UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = $1',
                 [user.id]
             );
-
             return res.json({ 
                 token: 'fake-jwt-token',
                 user: user.username,
@@ -95,12 +81,10 @@ app.post('/api/auth/login', async (req, res) => {
                 message: 'Bienvenido al sistema TOK3M'
             });
         } else {
-            // ERROR: Incrementar intentos y aplicar bloqueo exponencial
             const fallos = (user.intentos_fallidos || 0) + 1;
             let bloqueo = null;
 
             if (fallos >= 3) {
-                // Algoritmo: (intentos - 2)^2 minutos de espera. (1min, 4min, 9min...)
                 const minutosEspera = Math.pow(fallos - 2, 2);
                 bloqueo = new Date(ahora.getTime() + minutosEspera * 60000);
             }
@@ -119,6 +103,33 @@ app.post('/api/auth/login', async (req, res) => {
     } catch (e) {
         console.error("Error en Login DB:", e.message);
         res.status(500).json({ error: "Error en el servidor de autenticación" });
+    }
+});
+
+// ==========================================
+// --- PUENTE HACIA PC LOCAL (PROCESO PESADO) ---
+// ==========================================
+
+app.post('/api/descargar-reporte', async (req, res) => {
+    // ESTA URL debe ser la de tu ngrok actual
+    const URL_MI_PC = "https://TU_URL_DE_NGROK.ngrok-free.app/generar-informe";
+
+    try {
+        const respuesta = await axios({
+            method: 'post',
+            url: URL_MI_PC,
+            data: req.body, // Envía { fecha, empresa }
+            responseType: 'stream',
+            timeout: 600000 // 10 minutos
+        });
+
+        res.setHeader('Content-Type', 'text/html');
+        // Transmitimos el archivo de 15MB bit a bit para no saturar Railway
+        respuesta.data.pipe(res);
+        
+    } catch (e) {
+        console.error("Error en puente local:", e.message);
+        res.status(502).json({ error: "El procesador local (PC) está desconectado." });
     }
 });
 
@@ -224,7 +235,7 @@ app.get('/api/stats', async (req, res) => {
     }
 });
 
-// --- IMPORTACIÓN DE RUTAS ---
+// --- IMPORTACIÓN DE RUTAS SECUNDARIAS ---
 app.use('/api/resumen', require('./routes/resumen'));
 app.use('/api/calidad', require('./routes/calidad'));
 app.use('/api/riesgo', require('./routes/riesgo'));
