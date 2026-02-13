@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import axios from 'axios';
-import logo from '../assets/logo.jpg'; // Asegúrate de que la ruta sea correcta según tu estructura
+import logo from '../assets/LogoTok3m.png'; // Asegúrate de que la ruta sea correcta según tu estructura
 
 const Login = ({ onLogin }) => {
   const [username, setUsername] = useState('');
