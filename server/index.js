@@ -1,6 +1,6 @@
-// ARGUMENTO DE DIAGNÓSTICO: Consolidación total de infraestructura híbrida. 
-// Se mantiene la integridad de los 8 módulos de rutas secundarias y la lógica de agregación de stats.
-// Se integra la URL de producción del túnel ngrok para procesamiento pesado en hardware local.
+// ARGUMENTO DE DIAGNÓSTICO: Migración de infraestructura a Reverse Proxy Nginx por seguridad corporativa.
+// Se restaura la funcionalidad de filtros globales mediante middleware de inyección de Pool.
+// Consolidación total de los 8 módulos de rutas secundarias y lógica de gestión de usuarios.
 
 const express = require('express');
 const { Pool } = require('pg');
@@ -42,6 +42,13 @@ pool.connect((err, client, release) => {
 app.set('pool', pool);
 app.use(cors());
 app.use(express.json());
+
+// --- MIDDLEWARE CRÍTICO: RECUPERACIÓN DE FILTROS ---
+// Este bloque asegura que req.pool esté disponible para todas las rutas en ./routes/
+app.use((req, res, next) => {
+    req.pool = pool;
+    next();
+});
 
 // ==========================================
 // --- SISTEMA DE AUTENTICACIÓN SEGURA ---
@@ -110,29 +117,29 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // ==========================================
-// --- PUENTE HACIA PC LOCAL (REPORTE PESADO) ---
+// --- PUENTE HACIA REVERSE PROXY (Nginx) ---
 // ==========================================
 
 app.post('/api/descargar-reporte', async (req, res) => {
-    // URL DE TU NGROK ACTUALIZADA (Asegúrate de que el script Python use el puerto 5001)
-    const URL_MI_PC = "https://olympia-subdilated-latoyia.ngrok-free.dev/generar-informe";
+    // DIAGNÓSTICO: Se reemplaza la URL de Ngrok por la IP/Dominio del Proxy Nginx
+    // Tu jefe debe proporcionarte la IP pública o el dominio corporativo.
+    const URL_REVERSE_PROXY = "http://TU_IP_PUBLICA_O_DOMINIO_CORPORATIVO/generar-informe";
 
     try {
         const respuesta = await axios({
             method: 'post',
-            url: URL_MI_PC,
+            url: URL_REVERSE_PROXY,
             data: req.body, 
             responseType: 'stream',
-            timeout: 600000 // 10 minutos de margen para el proceso pesado
+            timeout: 600000 // 10 minutos para procesos pesados
         });
 
         res.setHeader('Content-Type', 'text/html');
-        // Transmisión directa por pipe para ahorrar memoria en Railway
         respuesta.data.pipe(res);
         
     } catch (e) {
-        console.error("Error en puente local:", e.message);
-        res.status(502).json({ error: "Tu computadora local no respondió al pedido. Verifica Ngrok y el puerto 5001." });
+        console.error("Error en puente local (Nginx):", e.message);
+        res.status(502).json({ error: "El servidor local (Nginx) no respondió al pedido." });
     }
 });
 
@@ -238,7 +245,7 @@ app.get('/api/stats', async (req, res) => {
     }
 });
 
-// --- IMPORTACIÓN DE RUTAS SECUNDARIAS (RESTAURADAS) ---
+// --- IMPORTACIÓN DE RUTAS SECUNDARIAS (FILTROS ACTIVOS) ---
 app.use('/api/resumen', require('./routes/resumen'));
 app.use('/api/calidad', require('./routes/calidad'));
 app.use('/api/riesgo', require('./routes/riesgo'));
