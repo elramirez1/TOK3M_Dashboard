@@ -121,9 +121,9 @@ app.post('/api/auth/login', async (req, res) => {
 // ==========================================
 
 app.post('/api/descargar-reporte', async (req, res) => {
-    // DIAGNÓSTICO: Se reemplaza la URL de Ngrok por la IP/Dominio del Proxy Nginx
-    // Tu jefe debe proporcionarte la IP pública o el dominio corporativo.
-    const URL_REVERSE_PROXY = "http://TU_IP_PUBLICA_O_DOMINIO_CORPORATIVO/generar-informe";
+    // DIAGNÓSTICO: Usamos variable de entorno para la IP/Dominio del Proxy
+    // Esta URL debe apuntar al servidor que tiene Nginx configurado.
+    const URL_REVERSE_PROXY = process.env.LOCAL_WORKER_URL || "http://CONFIGURAR_IP_EN_RAILWAY/generar-informe";
 
     try {
         const respuesta = await axios({
@@ -135,11 +135,12 @@ app.post('/api/descargar-reporte', async (req, res) => {
         });
 
         res.setHeader('Content-Type', 'text/html');
+        // Transmisión directa por pipe para ahorrar memoria en Railway
         respuesta.data.pipe(res);
         
     } catch (e) {
         console.error("Error en puente local (Nginx):", e.message);
-        res.status(502).json({ error: "El servidor local (Nginx) no respondió al pedido." });
+        res.status(502).json({ error: "El servidor local (Nginx) no respondió al pedido. Verifica el Proxy y el Worker." });
     }
 });
 
